@@ -108,6 +108,11 @@ button.primary { background: var(--accent); color: var(--accent-ink); border-col
 button:hover { filter: brightness(0.97); }
 
 .main { display: grid; gap: 20px; min-width: 0; }
+.pdf-head { display: grid; gap: 4px; padding-bottom: 4px; }
+.pdf-head .t { font-family: var(--font-display); font-weight: 700; font-size: 34px; text-transform: uppercase; line-height: 1.05; }
+.pdf-head .t span { color: var(--accent); }
+.pdf-head .m { color: var(--muted); font-size: 14px; }
+button:disabled { opacity: 0.6; cursor: progress; }
 
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 @media (max-width: 620px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -333,7 +338,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       </fieldset>
 
       <div class="btns">
-        <button type="button" class="primary" id="copy">Kopiuj listę zakupów</button>
+        <button type="button" class="primary" id="pdf">Pobierz PDF</button>
+        <button type="button" id="copy">Kopiuj listę zakupów</button>
         <button type="button" id="reset">Przywróć przykład</button>
       </div>
       <p class="hint" id="copyMsg" aria-live="polite"></p>
@@ -1012,6 +1018,116 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       navigator.clipboard.writeText(t).then(function () { msg.textContent = "Skopiowano do schowka."; }, fallback);
     } catch (e) { fallback(); }
   });
+
+  // ---------- eksport do PDF ----------
+  var LIBS = [
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+  ];
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      if (document.querySelector('script[src="' + src + '"]')) return res();
+      var sc = document.createElement("script");
+      sc.src = src; sc.onload = res; sc.onerror = function () { rej(new Error("Nie można wczytać " + src)); };
+      document.head.appendChild(sc);
+    });
+  }
+  // html2canvas rysuje SVG jako obrazek, więc style z arkusza trzeba przepisać do atrybutów
+  var SVG_PROPS = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-opacity", "fill-opacity", "opacity",
+    "font-family", "font-size", "font-weight", "letter-spacing", "text-transform", "paint-order", "dominant-baseline", "text-anchor"];
+  function inlineSvg(svg) {
+    if (!svg) return;
+    var vb = svg.viewBox.baseVal;
+    svg.setAttribute("width", vb.width); svg.setAttribute("height", vb.height);
+    svg.style.width = vb.width + "px"; svg.style.height = vb.height + "px"; svg.style.maxWidth = "none";
+    svg.querySelectorAll("*").forEach(function (n) {
+      var cs = getComputedStyle(n);
+      SVG_PROPS.forEach(function (k) { var v = cs.getPropertyValue(k); if (v) n.style.setProperty(k, v); });
+    });
+  }
+  function paramSummary(r) {
+    var p = r.p, out = [];
+    out.push("słupki " + fcm(p.s) + " × " + fcm(p.s) + " cm, rozstaw maks. " + fcm(p.span) + " cm");
+    var dWall = p.door ? r.walls[p.dWall] : null;
+    if (dWall && dWall.door) out.push("drzwi: " + p.dWall + ", " + fcm(dWall.door.w) + " cm");
+    if (r.wood) out.push("drewutnia: " + r.wood.wall + ", " + (r.wood.mode === "out" ? "na zewnątrz" : "w środku") + ", " + fcm(r.wood.len) + " × " + fcm(r.wood.D) + " cm");
+    out.push("kostka " + f(r.KX, 2) + " × " + f(r.KY, 2) + " m");
+    return out.join(" · ");
+  }
+
+  async function exportPdf() {
+    var r = compute();
+    var msg = el("copyMsg"), btn = el("pdf");
+    if (r.bad) { msg.textContent = "Popraw wymiary, zanim zapiszesz PDF."; return; }
+    msg.textContent = "Przygotowuję PDF…"; btn.disabled = true;
+    var root = document.documentElement, prevTheme = root.getAttribute("data-theme");
+    var head = null;
+    try {
+      for (var li = 0; li < LIBS.length; li++) await loadScript(LIBS[li]);
+      root.setAttribute("data-theme", "light"); // wydruk zawsze w jasnej wersji
+      render();
+      inlineSvg(el("plan").querySelector("svg"));
+
+      head = document.createElement("div");
+      head.className = "pdf-head";
+      head.innerHTML = '<div class="t">Altana <span>' + f(r.p.A, 2) + " × " + f(r.p.B, 2) + ' m</span></div>' +
+        '<div class="m">' + paramSummary(r) + "</div>" +
+        '<div class="m">Wygenerowano ' + new Date().toLocaleDateString("pl-PL") + " w Kalkulatorze altanki</div>";
+      var main = document.querySelector(".main");
+      main.insertBefore(head, main.firstChild);
+
+      var parts = [head, el("stats")];
+      if (el("warn").innerHTML) parts.push(el("warn"));
+      parts.push(el("plan").closest(".card"), document.querySelector(".two"));
+      if (!el("woodCard").hidden) parts.push(el("woodCard"));
+      parts.push(el("tbl").closest(".card"), el("steps").closest(".card"));
+
+      var pdf = new window.jspdf.jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      var PW = 210, PH = 297, MG = 12, CW = PW - 2 * MG, y = MG, GAP = 5;
+      for (var i = 0; i < parts.length; i++) {
+        var canvas = await window.html2canvas(parts[i], { scale: 2, backgroundColor: "#ffffff", windowWidth: 1300, logging: false });
+        var pxPerMm = canvas.width / CW;
+        var hmm = canvas.height / pxPerMm;
+        if (hmm <= PH - 2 * MG) {
+          if (y + hmm > PH - MG) { pdf.addPage(); y = MG; }
+          pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", MG, y, CW, hmm);
+          y += hmm + GAP;
+        } else {
+          // element wyższy niż strona — tniemy na kawałki
+          var done = 0;
+          while (done < canvas.height) {
+            var avail = PH - MG - y;
+            if (avail < 30) { pdf.addPage(); y = MG; avail = PH - 2 * MG; }
+            var slicePx = Math.min(canvas.height - done, Math.floor(avail * pxPerMm));
+            var c2 = document.createElement("canvas");
+            c2.width = canvas.width; c2.height = slicePx;
+            var ctx = c2.getContext("2d");
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c2.width, c2.height);
+            ctx.drawImage(canvas, 0, done, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+            pdf.addImage(c2.toDataURL("image/jpeg", 0.92), "JPEG", MG, y, CW, slicePx / pxPerMm);
+            y += slicePx / pxPerMm + GAP;
+            done += slicePx;
+          }
+        }
+      }
+      var n = pdf.getNumberOfPages();
+      for (var pg = 1; pg <= n; pg++) {
+        pdf.setPage(pg);
+        pdf.setFontSize(8); pdf.setTextColor(120);
+        pdf.text("Kalkulator altanki  -  strona " + pg + " / " + n, PW / 2, PH - 5, { align: "center" });
+      }
+      pdf.save("altana-" + Math.round(r.p.A * 100) + "x" + Math.round(r.p.B * 100) + "cm.pdf");
+      msg.textContent = "PDF zapisany w pobranych plikach.";
+    } catch (e) {
+      msg.textContent = "Nie udało się utworzyć PDF. Sprawdź połączenie z internetem i spróbuj jeszcze raz.";
+    } finally {
+      if (head && head.parentNode) head.parentNode.removeChild(head);
+      if (prevTheme === null) root.removeAttribute("data-theme"); else root.setAttribute("data-theme", prevTheme);
+      btn.disabled = false;
+      render();
+    }
+  }
+  el("pdf").addEventListener("click", exportPdf);
 
   el("reset").addEventListener("click", function () {
     IDS.forEach(function (id) { el(id).value = defaults[id]; });
