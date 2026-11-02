@@ -1059,6 +1059,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var r = compute();
     var msg = el("copyMsg"), btn = el("pdf");
     if (r.bad) { msg.textContent = "Popraw wymiary, zanim zapiszesz PDF."; return; }
+    var framed = false;
+    try { framed = window.top !== window.self; } catch (e) { framed = true; }
+    if (framed) { msg.textContent = "W podglądzie pobieranie plików jest zablokowane. PDF pobierzesz ze strony: mrpankrecik.github.io/projektowanie-altanek"; return; }
     msg.textContent = "Przygotowuję PDF…"; btn.disabled = true;
     var root = document.documentElement, prevTheme = root.getAttribute("data-theme");
     var head = null;
