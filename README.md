@@ -6,13 +6,15 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
 
 ## Co liczy
 
-- **Kostka pod altaną** – wymiar, m² z zapasem, liczba sztuk i palet, obrzeża, głębokość koryta,
+- **Kostka pod altaną** – wymiar, m² z zapasem, liczba sztuk i palet, głębokość koryta,
   kruszywo, piasek i cement na podsypkę.
 - **Słupki** – ile ich potrzeba i gdzie dokładnie mają stać (współrzędne od rogu kostki i od narożnika
   altany), z równym rozstawem nieprzekraczającym podanego maksimum. Opcjonalnie słupek pod kalenicę.
 - **Drzwi** – otwór na wybranej ścianie ze słupkami i kotwami po obu stronach oraz długość nadproża.
 - **Drewutnia** – miejsce na drewno dobudowane z zewnątrz lub wydzielone w środku, zabudowane
   kratownicą: dodatkowe słupki, metry kratownicy i pojemność w metrach przestrzennych.
+- **Obrzeże** – metry bieżące wokół kostki na wybranych bokach, sztuki na każdy bok z docinkami
+  (obrzeża 100, 75 lub 50 cm) i beton na ławę pod obrzeże.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
 - **Rzut z góry** z wymiarami, instrukcja wytyczenia w terenie, lista zakupów do schowka i **eksport do PDF**.
 

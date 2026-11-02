@@ -44,6 +44,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -97,6 +98,7 @@ input[type="number"], select {
 }
 select { font-family: var(--font-body); padding-right: 10px; }
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.checks4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .hint { font-size: 12.5px; color: var(--muted); margin: 0; }
 
 .btns { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -173,6 +175,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 .svg-dimtxt.acc { fill: var(--accent); font-weight: 600; }
 .svg-front { fill: var(--muted); font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
 .svg-zero { fill: var(--ink); }
+.svg-curb { fill: var(--ink); fill-opacity: 0.75; }
 .svg-wood { fill: url(#lattice); stroke: var(--wood); stroke-width: 2; }
 .svg-lattice-bg { fill: var(--wood-fill); }
 .svg-lattice-line { stroke: var(--wood); stroke-width: 1.2; stroke-opacity: 0.55; }
@@ -325,6 +328,38 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       </fieldset>
 
       <fieldset>
+        <legend><i style="background:var(--ink)"></i>Obrzeże</legend>
+        <div class="checks4">
+          <label class="check"><input type="checkbox" id="oF" checked> Przód</label>
+          <label class="check"><input type="checkbox" id="oB" checked> Tył</label>
+          <label class="check"><input type="checkbox" id="oL" checked> Lewa</label>
+          <label class="check"><input type="checkbox" id="oR" checked> Prawa</label>
+        </div>
+        <p class="hint">Zaznacz boki kostki, przy których kładziesz obrzeże. Odznacz bok, który dochodzi do ściany lub istniejącej ścieżki.</p>
+        <div class="row">
+          <label>Długość obrzeża
+            <select id="oLen">
+              <option value="100">100 cm</option>
+              <option value="75">75 cm</option>
+              <option value="50">50 cm</option>
+            </select>
+          </label>
+          <label>Grubość obrzeża
+            <span class="unit" data-u="cm"><input type="number" id="oT" step="1" min="3" value="6"></span>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="oLaw" checked> Ława betonowa pod obrzeże</label>
+        <div class="row" id="oLawBox">
+          <label>Szerokość ławy
+            <span class="unit" data-u="cm"><input type="number" id="oLW" step="1" min="5" value="25"></span>
+          </label>
+          <label>Wysokość ławy
+            <span class="unit" data-u="cm"><input type="number" id="oLH" step="1" min="5" value="15"></span>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
         <legend><i style="background:var(--muted)"></i>Fundament słupka</legend>
         <div class="row">
           <label>Bok stopy
@@ -354,6 +389,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <div class="plan-box" id="plan"></div>
         <div class="legend">
           <span><i class="sw" style="background:var(--pave-fill);border-color:var(--pave)"></i>kostka</span>
+          <span><i class="sw" style="background:var(--ink);opacity:.75;height:5px"></i>obrzeże</span>
           <span><i class="sw" style="border:1.5px dashed var(--timber);background:transparent"></i>obrys altany</span>
           <span><i class="sw" style="background:var(--accent);border-color:var(--ink)"></i>słupek</span>
           <span><i class="sw" style="border:1px dotted var(--muted);background:transparent"></i>osie słupków</span>
@@ -366,7 +402,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <section class="card">
           <h2>Kostka i podbudowa</h2>
           <dl class="mat" id="mat"></dl>
-          <p class="note">Ilości kruszywa i piasku podane są luzem, czyli tyle, ile trzeba zamówić przed zagęszczeniem (×1,25). Cement liczony orientacyjnie dla podsypki 1:4.</p>
+          <p class="note">Obrzeże liczone jest po zewnętrznej stronie kostki, a każdy bok osobno, bo resztek z jednego boku zwykle nie da się użyć na innym. Ilości kruszywa i piasku podane są luzem, czyli tyle, ile trzeba zamówić przed zagęszczeniem (×1,25). Cement liczony orientacyjnie dla podsypki 1:4.</p>
         </section>
         <section class="card">
           <h2>Słupki i fundamenty</h2>
@@ -412,9 +448,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 <script>
 (function () {
   "use strict";
-  var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen",
+  var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
-  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull"];
+  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw"];
   var KEY = "kalkulator-altanki-v3";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
@@ -545,7 +581,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       pallet: num("pallet"), foot: num("foot") / 100, depth: num("depth") / 100, ridge: el("ridge").checked,
       door: el("door").checked, dWall: el("dWall").value, dW: num("dW") / 100, dMid: el("dMid").checked, dOff: num("dOff") / 100,
       wood: el("wood").checked, wWall: el("wWall").value, wMode: el("wMode").value, wD: num("wD") / 100, wH: num("wH") / 100,
-      wFull: el("wFull").checked, wOff: num("wOff") / 100, wLen: num("wLen") / 100
+      wFull: el("wFull").checked, wOff: num("wOff") / 100, wLen: num("wLen") / 100,
+      oF: el("oF").checked, oB: el("oB").checked, oL: el("oL").checked, oR: el("oR").checked,
+      oLen: parseFloat(el("oLen").value) / 100, oT: num("oT") / 100, oLaw: el("oLaw").checked, oLW: num("oLW") / 100, oLH: num("oLH") / 100
     };
     var warn = [];
     if (p.A < 1 || p.B < 1) warn.push("Wymiary altany muszą mieć co najmniej 1 m.");
@@ -614,6 +652,19 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var KY = by1 - by0 + 2 * p.m + p.fr;
     var ox = p.m - bx0, oy = p.m + p.fr - by0;
 
+    // ---- obrzeże: przód i tył idą przez narożnik (+ grubość obrzeża), boki dochodzą do nich ----
+    var curb = { sides: [], mb: 0, pcs: 0, t: p.oT, L: p.oLen };
+    [["przód", p.oF, KX, true], ["tył", p.oB, KX, true], ["lewa", p.oL, KY, false], ["prawa", p.oR, KY, false]].forEach(function (c) {
+      if (!c[1]) return;
+      var len = c[2];
+      if (c[3]) len += (p.oL ? p.oT : 0) + (p.oR ? p.oT : 0);
+      var pcs = Math.ceil(len / p.oLen - 1e-9);
+      curb.sides.push({ n: c[0], len: len, pcs: pcs, cut: pcs * p.oLen - len });
+      curb.mb += len; curb.pcs += pcs;
+    });
+    curb.lawV = p.oLaw ? curb.mb * p.oLW * p.oLH : 0;
+    curb.lawBags = Math.ceil(curb.lawV * 1000 / 12);
+
     // ---- słupki: obwód zgodnie z ruchem wskazówek zegara od lewego przedniego, potem drewutnia ----
     var pts = [], byKey = {};
     function add(label, q, xy) {
@@ -674,7 +725,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var footV = pts.length * p.foot * p.foot * p.depth;
     var LA = p.A - p.s, LB = p.B - p.s;
     return {
-      p: p, warn: warn, walls: walls, wood: wood, woodLine: woodLine, LA: LA, LB: LB, KX: KX, KY: KY, ox: ox, oy: oy,
+      p: p, warn: warn, walls: walls, wood: wood, curb: curb, woodLine: woodLine, LA: LA, LB: LB, KX: KX, KY: KY, ox: ox, oy: oy,
       pts: pts, doorPts: doorPts, woodPts: woodPts,
       maxSpan: maxSpan, area: area, areaW: areaW, pieces: Math.ceil(areaW * p.perM2), pallets: areaW / p.pallet,
       perim: 2 * (KX + KY), dig: dig, exc: area * dig, baseLoose: area * p.base * 1.25, bedLoose: area * p.bed * 1.25,
@@ -704,6 +755,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var dw = el("dWall").value;
     el("dHint").textContent = "Szerokość przejścia to prześwit między słupkami przy drzwiach." +
       (el("dMid").checked ? "" : (dw === "przód" || dw === "tył") ? " Odległość mierzysz od lewej zewnętrznej krawędzi altany, patrząc od frontu." : " Odległość mierzysz od przedniej zewnętrznej krawędzi altany.");
+    el("oLawBox").hidden = !el("oLaw").checked;
     var wOn = el("wood").checked;
     ["woodBox1", "woodBox2", "woodBox3", "woodHint"].forEach(function (id) { el(id).hidden = !wOn; });
     el("woodBox4").hidden = !wOn || el("wFull").checked;
@@ -739,7 +791,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       row("Powierzchnia netto", f(r.area, 2) + " m²"),
       row("Z zapasem " + f(p.waste * 100, 0) + "%", f(r.areaW, 2) + " m²"),
       row(p.fmtName + "<small>" + f(p.perM2, p.perM2 % 1 ? 2 : 0) + " szt./m²</small>", "ok. " + r.pieces.toLocaleString("pl-PL") + " szt."),
-      row("Obrzeża betonowe<small>obwód kostki, odcinki 1 m</small>", f(r.perim, 2) + " mb → " + Math.ceil(r.perim) + " szt."),
+      curbRows(r),
       row("Głębokość korytowania<small>" + fcm(p.thick) + " kostka + " + fcm(p.bed) + " podsypka + " + fcm(p.base) + " podbudowa</small>", fcm(r.dig) + " cm"),
       row("Ziemia z wykopu", f(r.exc, 2) + " m³"),
       row("Kruszywo 0–31,5 mm", f(r.baseLoose, 2) + " m³ (~" + f(r.baseLoose * 1.6, 1) + " t)"),
@@ -803,9 +855,26 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         " Między słupkami zostaw równe przęsła, żeby panele kratownicy miały jeden wymiar.");
     }
     steps.push("Wykop i zalej stopy fundamentowe z kotwami, a dopiero po związaniu betonu koryto pod kostkę na głębokość " + fcm(r.dig) + " cm.");
+    if (r.curb.sides.length) {
+      steps.push("Obrzeże ustaw na sznurku wzdłuż krawędzi kostki" + (p.oLaw ? ", na ławie z betonu półsuchego " + fcm(p.oLW) + " × " + fcm(p.oLH) + " cm, z oporem od zewnątrz" : "") +
+        ". Górę obrzeża wyrównaj do poziomu gotowej kostki i daj lekki spadek (1–2%) od altany. Kostkę układaj, kiedy beton pod obrzeżem zwiąże.");
+    }
     el("steps").innerHTML = steps.map(function (t) { return "<li>" + t + "</li>"; }).join("");
 
     el("plan").innerHTML = drawPlan(r);
+  }
+
+  function curbRows(r) {
+    var c = r.curb, p = r.p;
+    if (!c.sides.length) return row("Obrzeże", "bez obrzeża");
+    var out = [row("Obrzeże razem<small>" + c.sides.length + (c.sides.length === 1 ? " bok" : c.sides.length < 5 ? " boki" : " boków") + ", z narożnikami, grubość " + fcm(c.t) + " cm</small>", f(c.mb, 2) + " mb")];
+    c.sides.forEach(function (sd) {
+      out.push(row("&nbsp;&nbsp;" + cap(sd.n) + "<small>" + (sd.cut > 0.005 ? "ostatnie docięte na " + fcm(sd.len - (sd.pcs - 1) * c.L) + " cm" : "bez docinania") + "</small>",
+        fcm(sd.len) + " cm → " + sd.pcs + " szt."));
+    });
+    out.push(row("Obrzeża po " + fcm(c.L) + " cm", c.pcs + " szt."));
+    if (p.oLaw) out.push(row("Ława pod obrzeże<small>" + fcm(p.oLW) + " × " + fcm(p.oLH) + " cm, beton półsuchy</small>", f(c.lawV, 2) + " m³ (~" + c.lawBags + " worków 25 kg)"));
+    return out.join("");
   }
 
   function stat(k, v, u, s, hot) {
@@ -837,6 +906,12 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       '<rect width="12" height="12" class="svg-lattice-bg"/><line x1="0" y1="0" x2="0" y2="12" class="svg-lattice-line"/><line x1="0" y1="0" x2="12" y2="0" class="svg-lattice-line"/></pattern></defs>');
 
     o.push(rect(X(0), Y(r.KY), r.KX * k, r.KY * k, "svg-pave"));
+    // obrzeże na zewnątrz kostki
+    var ct = Math.max(p.oT * k, 3), cL = p.oL ? ct : 0, cR = p.oR ? ct : 0;
+    if (p.oF) o.push(rect(X(0) - cL, Y(0), r.KX * k + cL + cR, ct, "svg-curb"));
+    if (p.oB) o.push(rect(X(0) - cL, Y(r.KY) - ct, r.KX * k + cL + cR, ct, "svg-curb"));
+    if (p.oL) o.push(rect(X(0) - ct, Y(r.KY), ct, r.KY * k, "svg-curb"));
+    if (p.oR) o.push(rect(X(r.KX), Y(r.KY), ct, r.KY * k, "svg-curb"));
 
     // drewutnia
     if (wood) {
@@ -978,7 +1053,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     L.push("");
     L.push("Kostka (" + p.fmtName + ", " + fcm(p.thick) + " cm): " + f(r.areaW, 1) + " m² (netto " + f(r.area, 2) + " m²), ok. " + r.pieces + " szt., " + f(Math.ceil(r.pallets * 10) / 10, 1) + " palety");
     L.push("Wymiar kostki: " + f(r.KX, 2) + " × " + f(r.KY, 2) + " m");
-    L.push("Obrzeża 1 m: " + Math.ceil(r.perim) + " szt.");
+    if (r.curb.sides.length) {
+      L.push("Obrzeże: " + f(r.curb.mb, 2) + " mb → " + r.curb.pcs + " szt. po " + fcm(r.curb.L) + " cm (" + r.curb.sides.map(function (sd) { return sd.n + " " + sd.pcs; }).join(", ") + ")" +
+        (r.p.oLaw ? ", ława " + f(r.curb.lawV, 2) + " m³ (~" + r.curb.lawBags + " worków)" : ""));
+    }
     L.push("Kruszywo 0–31,5: " + f(r.baseLoose, 2) + " m³");
     L.push("Piasek: " + f(r.bedLoose, 2) + " m³, cement: ~" + Math.ceil(r.cementKg / 25) + " worków");
     L.push("");
