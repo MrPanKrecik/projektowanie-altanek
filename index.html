@@ -141,7 +141,7 @@ td.mono, td .mono { font-family: var(--font-mono); font-size: 13.5px; }
 .pid { display: inline-grid; place-items: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); font-family: var(--font-mono); font-weight: 600; font-size: 12.5px; }
 tr.group td { background: var(--bg); font-weight: 600; text-align: left; font-size: 13px; color: var(--muted); }
 
-.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
 @media (max-width: 1000px) { .two { grid-template-columns: minmax(0, 1fr); } }
 
 dl.mat { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
@@ -166,6 +166,12 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 .svg-dimtxt.acc { fill: var(--accent); font-weight: 600; }
 .svg-front { fill: var(--muted); font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
 .svg-zero { fill: var(--ink); }
+.svg-post.door { stroke-width: 2.5; }
+.svg-door { stroke: var(--accent); stroke-width: 2; }
+.svg-door-arc { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; }
+.svg-door-gap { stroke: var(--accent); stroke-width: 3; stroke-opacity: 0.35; }
+.pid.door { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
+
 </style>
 </head>
 <body>
@@ -197,6 +203,29 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           </label>
         </div>
         <label class="check"><input type="checkbox" id="ridge" checked> Słupek na środku krótszych ścian (pod kalenicę dachu dwuspadowego)</label>
+      </fieldset>
+
+      <fieldset>
+        <legend><i style="background:var(--accent)"></i>Drzwi</legend>
+        <label class="check"><input type="checkbox" id="door" checked> Otwór na drzwi ze słupkami po obu stronach</label>
+        <div class="row">
+          <label>Ściana
+            <select id="dWall">
+              <option value="przód">Przód</option>
+              <option value="tył">Tył</option>
+              <option value="lewa">Lewa</option>
+              <option value="prawa">Prawa</option>
+            </select>
+          </label>
+          <label>Szerokość przejścia
+            <span class="unit" data-u="cm"><input type="number" id="dW" step="1" min="50" value="90"></span>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="dMid" checked> Drzwi na środku ściany</label>
+        <label id="dOffWrap">Od narożnika do otworu
+          <span class="unit" data-u="cm"><input type="number" id="dOff" step="1" min="0" value="60"></span>
+        </label>
+        <p class="hint" id="dHint">Szerokość przejścia to prześwit między słupkami przy drzwiach. Odległość mierzysz od zewnętrznej krawędzi altany.</p>
       </fieldset>
 
       <fieldset>
@@ -272,6 +301,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           <span><i class="sw" style="border:1.5px dashed var(--timber);background:transparent"></i>obrys altany</span>
           <span><i class="sw" style="background:var(--accent);border-color:var(--ink)"></i>słupek</span>
           <span><i class="sw" style="border:1px dotted var(--muted);background:transparent"></i>osie słupków</span>
+          <span><i class="sw" style="border:0;border-top:2px solid var(--accent);border-right:1px dashed var(--accent);background:transparent;border-radius:0 100% 0 0"></i>drzwi i słupki przy drzwiach</span>
         </div>
       </section>
 
@@ -319,9 +349,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 <script>
 (function () {
   "use strict";
-  var IDS = ["A", "B", "span", "post", "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
-  var CHECKS = ["ridge"];
-  var KEY = "kalkulator-altanki-v1";
+  var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
+  var CHECKS = ["ridge", "door", "dMid"];
+  var KEY = "kalkulator-altanki-v2";
+  var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
   IDS.forEach(function (id) { defaults[id] = el(id).value; });
   CHECKS.forEach(function (id) { defaults[id] = el(id).checked; });
@@ -332,9 +363,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (d === undefined) d = 2;
     return Number(v).toLocaleString("pl-PL", { minimumFractionDigits: d, maximumFractionDigits: d });
   }
-  function cm(m) { return Math.round(m * 1000) / 10; }
   function fcm(m) {
-    var c = cm(m);
+    var c = Math.round(m * 1000) / 10;
     return Number(c).toLocaleString("pl-PL", { maximumFractionDigits: 1 });
   }
 
@@ -356,6 +386,67 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     } catch (e) {}
   }
 
+  // ---------- geometria ścian ----------
+  // u = odległość wzdłuż ściany od zewnętrznego narożnika (przód/tył: od lewej, boki: od przodu)
+  function wallPoint(p, name, u) {
+    if (name === "przód") return { x: u, y: p.s / 2 };
+    if (name === "tył") return { x: u, y: p.B - p.s / 2 };
+    if (name === "lewa") return { x: p.s / 2, y: u };
+    return { x: p.A - p.s / 2, y: u };
+  }
+  function wallInward(name) {
+    if (name === "przód") return { x: 0, y: 1 };
+    if (name === "tył") return { x: 0, y: -1 };
+    if (name === "lewa") return { x: 1, y: 0 };
+    return { x: -1, y: 0 };
+  }
+
+  function buildWall(p, name, ridge, warn) {
+    var L = (name === "przód" || name === "tył") ? p.A : p.B;
+    var a = p.s / 2, b = L - p.s / 2;
+    var pos = [{ u: a, door: false }];
+    function fill(from, to) {
+      var n = Math.max(1, Math.ceil((to - from) / p.span - 1e-9));
+      for (var k = 1; k < n; k++) pos.push({ u: from + k * (to - from) / n, door: false });
+    }
+    var door = null;
+    if (p.door && p.dWall === name) {
+      if (p.dW + 2 * p.s > L + 1e-9) {
+        warn.push("Drzwi o szerokości " + fcm(p.dW) + " cm nie zmieszczą się na ścianie „" + name + "” (" + fcm(L) + " cm razem ze słupkami narożnymi).");
+      } else {
+        var d0 = p.dMid ? (L - p.dW) / 2 : p.dOff;
+        var shift = 0;
+        if (d0 < p.s) { shift = p.s - d0; d0 = p.s; }
+        if (d0 + p.dW > L - p.s) { shift = (d0 + p.dW) - (L - p.s); d0 = L - p.s - p.dW; }
+        if (shift > 0.0005) warn.push("Otwór drzwiowy nachodził na słupek narożny, więc przesunąłem go o " + fcm(shift) + " cm.");
+        // jeśli między słupkiem narożnym a słupkiem drzwiowym nie zmieści się nawet jeden słupek, dosuń drzwi do narożnika
+        if (d0 - p.s > 1e-9 && d0 - p.s < p.s) { warn.push("Drzwi stały tuż przy narożniku (" + fcm(d0 - p.s) + " cm od słupka), więc dosunąłem je do słupka narożnego, który będzie trzymał drzwi."); d0 = p.s; }
+        var e = L - p.s - (d0 + p.dW);
+        if (e > 1e-9 && e < p.s) { warn.push("Drzwi stały tuż przy narożniku, więc dosunąłem je do słupka narożnego, który będzie trzymał drzwi."); d0 = L - p.s - p.dW; }
+        door = { d0: d0, w: p.dW, uL: d0 - p.s / 2, uR: d0 + p.dW + p.s / 2 };
+      }
+    }
+    if (door) {
+      fill(a, door.uL);
+      if (door.uL > a + 1e-9) pos.push({ u: door.uL, door: true }); else pos[0].door = true;
+      door.gi = pos.length - 1;
+      if (door.uR < b - 1e-9) { pos.push({ u: door.uR, door: true }); fill(door.uR, b); pos.push({ u: b, door: false }); }
+      else pos.push({ u: b, door: true });
+      if (ridge) {
+        var mid = L / 2, hit = pos.some(function (q) { return Math.abs(q.u - mid) < 1e-6; });
+        if (!hit) warn.push("Na ścianie z drzwiami nie ma słupka na środku. Kalenicę oprzyj na nadprożu nad drzwiami albo przesuń drzwi.");
+      }
+    } else {
+      var n = Math.max(1, Math.ceil((b - a) / p.span - 1e-9));
+      if (ridge && n % 2) n++;
+      for (var k = 1; k < n; k++) pos.push({ u: a + k * (b - a) / n, door: false });
+      pos.push({ u: b, door: false });
+    }
+    var spans = [];
+    for (var i = 0; i < pos.length - 1; i++) spans.push({ d: pos[i + 1].u - pos[i].u, door: !!door && i === door.gi });
+    return { name: name, L: L, pos: pos, door: door, spans: spans };
+  }
+
   // ---------- obliczenia ----------
   function compute() {
     var p = {
@@ -363,84 +454,110 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       m: num("margin"), fr: num("front"), perM2: parseFloat(el("fmt").value),
       fmtName: el("fmt").options[el("fmt").selectedIndex].text.split(" (")[0],
       thick: num("thick") / 100, waste: num("waste") / 100, bed: num("bed") / 100, base: num("base") / 100,
-      pallet: num("pallet"), foot: num("foot") / 100, depth: num("depth") / 100, ridge: el("ridge").checked
+      pallet: num("pallet"), foot: num("foot") / 100, depth: num("depth") / 100, ridge: el("ridge").checked,
+      door: el("door").checked, dWall: el("dWall").value, dW: num("dW") / 100, dMid: el("dMid").checked, dOff: num("dOff") / 100
     };
     var warn = [];
     if (p.A < 1 || p.B < 1) warn.push("Wymiary altany muszą mieć co najmniej 1 m.");
     if (p.span < 0.5) warn.push("Maksymalny rozstaw słupków musi mieć co najmniej 0,5 m.");
     if (p.s <= 0 || p.s * 2 >= Math.min(p.A, p.B)) warn.push("Przekrój słupka jest za duży w stosunku do wymiarów altany.");
+    if (p.door && p.dW < 0.5) warn.push("Szerokość przejścia musi mieć co najmniej 50 cm.");
     if (warn.length) return { p: p, warn: warn, bad: true };
 
-    // osie słupków: od s/2 do A - s/2
-    var LA = p.A - p.s, LB = p.B - p.s;
-    var nx = Math.max(1, Math.ceil(LA / p.span - 1e-9));
-    var ny = Math.max(1, Math.ceil(LB / p.span - 1e-9));
-    // kalenica biegnie wzdłuż dłuższego boku → słupek na środku krótszych ścian
-    var shortIsB = p.B <= p.A;
-    if (p.ridge) {
-      if (shortIsB) { if (ny % 2) ny++; } else { if (nx % 2) nx++; }
-    }
-    var dx = LA / nx, dy = LB / ny;
+    var shortIsB = p.B <= p.A; // kalenica wzdłuż dłuższego boku
+    var walls = {};
+    WALLS.forEach(function (name) {
+      var isShort = (name === "lewa" || name === "prawa") ? shortIsB : !shortIsB;
+      walls[name] = buildWall(p, name, p.ridge && isShort, warn);
+    });
 
-    // kostka
     var KX = p.A + 2 * p.m;
     var KY = p.B + 2 * p.m + p.fr;
-    var ox = p.m, oy = p.m + p.fr; // narożnik altany względem narożnika kostki
+    var ox = p.m, oy = p.m + p.fr;
 
-    // słupki — numeracja zgodnie z ruchem wskazówek zegara od lewego przedniego
-    var pts = [];
-    var i;
-    function add(ix, iy, wall) {
-      var x = p.s / 2 + ix * dx, y = p.s / 2 + iy * dy;
-      pts.push({ ax: x, ay: y, kx: x + ox, ky: y + oy, wall: wall, corner: (ix === 0 || ix === nx) && (iy === 0 || iy === ny) });
+    // słupki — obchodzimy ściany zgodnie z ruchem wskazówek zegara od lewego przedniego narożnika
+    var pts = [], byKey = {};
+    function add(name, q) {
+      var pt = wallPoint(p, name, q.u);
+      var key = Math.round(pt.x * 1000) + "_" + Math.round(pt.y * 1000);
+      if (byKey[key]) { if (q.door) byKey[key].door = true; return; }
+      var corner = (Math.abs(pt.x - p.s / 2) < 1e-6 || Math.abs(pt.x - (p.A - p.s / 2)) < 1e-6) &&
+                   (Math.abs(pt.y - p.s / 2) < 1e-6 || Math.abs(pt.y - (p.B - p.s / 2)) < 1e-6);
+      var o = { ax: pt.x, ay: pt.y, kx: pt.x + ox, ky: pt.y + oy, wall: name, corner: corner, door: q.door };
+      byKey[key] = o; pts.push(o);
     }
-    for (i = 0; i <= nx; i++) add(i, 0, "przód");
-    for (i = 1; i <= ny; i++) add(nx, i, "prawa");
-    for (i = nx - 1; i >= 0; i--) add(i, ny, "tył");
-    for (i = ny - 1; i >= 1; i--) add(0, i, "lewa");
-    pts.forEach(function (q, k) { q.id = "S" + (k + 1); if (q.corner) q.wall += " (narożnik)"; });
+    walls["przód"].pos.forEach(function (q) { add("przód", q); });
+    walls["prawa"].pos.forEach(function (q) { add("prawa", q); });
+    walls["tył"].pos.slice().reverse().forEach(function (q) { add("tył", q); });
+    walls["lewa"].pos.slice().reverse().forEach(function (q) { add("lewa", q); });
+    pts.forEach(function (q, k) { q.id = "S" + (k + 1); });
+    var doorPts = pts.filter(function (q) { return q.door; });
+
+    var maxSpan = 0, minSpan = Infinity;
+    WALLS.forEach(function (n) {
+      walls[n].spans.forEach(function (sp) { if (!sp.door) { maxSpan = Math.max(maxSpan, sp.d); minSpan = Math.min(minSpan, sp.d); } });
+    });
+    if (minSpan < 0.6) warn.push("Najkrótsze przęsło ma tylko " + fcm(minSpan) + " cm. Sprawdź maksymalny rozstaw i położenie drzwi.");
+    if (p.m < p.foot / 2 - p.s / 2) warn.push("Stopa fundamentowa wystaje poza kostkę. Zwiększ wysunięcie kostki lub zmniejsz stopę.");
+    WALLS.forEach(function (n) {
+      var w = walls[n];
+      w.spans.forEach(function (sp) {
+        if (sp.d < p.foot - 1e-9) warn.push("Na ścianie „" + n + "” słupki stoją w odstępie " + fcm(sp.d) + " cm, a stopy mają " + fcm(p.foot) + " cm. Zrób pod nimi jedną wspólną ławę albo zmniejsz stopy.");
+      });
+    });
 
     var area = KX * KY;
     var areaW = area * (1 + p.waste);
-    var pieces = Math.ceil(areaW * p.perM2);
-    var pallets = areaW / p.pallet;
-    var perim = 2 * (KX + KY);
     var dig = p.thick + p.bed + p.base;
-    var exc = area * dig;
-    var baseLoose = area * p.base * 1.25;
-    var bedLoose = area * p.bed * 1.25;
-    var cementKg = bedLoose * 250;
     var footV = pts.length * p.foot * p.foot * p.depth;
-    var footBags = Math.ceil(footV * 1000 / 12); // worek 25 kg suchej mieszanki ≈ 12 l betonu
-
-    if (dx < 0.6) warn.push("Rozstaw słupków wyszedł mniejszy niż 60 cm. Sprawdź, czy maksymalny rozstaw nie jest za mały.");
-    if (p.m < p.foot / 2 - p.s / 2) warn.push("Stopa fundamentowa wystaje poza kostkę. Zwiększ wysunięcie kostki lub zmniejsz stopę.");
-
+    var LA = p.A - p.s, LB = p.B - p.s;
     return {
-      p: p, warn: warn, nx: nx, ny: ny, dx: dx, dy: dy, LA: LA, LB: LB, KX: KX, KY: KY, ox: ox, oy: oy, pts: pts,
-      area: area, areaW: areaW, pieces: pieces, pallets: pallets, perim: perim, dig: dig, exc: exc,
-      baseLoose: baseLoose, bedLoose: bedLoose, cementKg: cementKg, footV: footV, footBags: footBags,
-      diagAxis: Math.sqrt(LA * LA + LB * LB), diagOut: Math.sqrt(p.A * p.A + p.B * p.B), shortIsB: shortIsB
+      p: p, warn: warn, walls: walls, LA: LA, LB: LB, KX: KX, KY: KY, ox: ox, oy: oy, pts: pts, doorPts: doorPts,
+      maxSpan: maxSpan, area: area, areaW: areaW, pieces: Math.ceil(areaW * p.perM2), pallets: areaW / p.pallet,
+      perim: 2 * (KX + KY), dig: dig, exc: area * dig, baseLoose: area * p.base * 1.25, bedLoose: area * p.bed * 1.25,
+      cementKg: area * p.bed * 1.25 * 250, footV: footV, footBags: Math.ceil(footV * 1000 / 12), // worek 25 kg ≈ 12 l betonu
+      diagAxis: Math.sqrt(LA * LA + LB * LB), diagOut: Math.sqrt(p.A * p.A + p.B * p.B)
     };
   }
 
+  function spanText(w) {
+    // grupuje kolejne równe przęsła: "2 × 194 · drzwi · 1 × 143"
+    var out = [], i = 0;
+    while (i < w.spans.length) {
+      var sp = w.spans[i];
+      if (sp.door) { out.push("drzwi"); i++; continue; }
+      var n = 1;
+      while (i + n < w.spans.length && !w.spans[i + n].door && Math.abs(w.spans[i + n].d - sp.d) < 0.0005) n++;
+      out.push(n + " × " + fcm(sp.d));
+      i += n;
+    }
+    return out.join(" · ") + " cm";
+  }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
   // ---------- render ----------
   function render() {
+    el("dOffWrap").hidden = el("dMid").checked || !el("door").checked;
+    var dw = el("dWall").value;
+    el("dHint").textContent = "Szerokość przejścia to prześwit między słupkami przy drzwiach." +
+      (el("dMid").checked ? "" : (dw === "przód" || dw === "tył") ? " Odległość mierzysz od lewej zewnętrznej krawędzi altany, patrząc od frontu." : " Odległość mierzysz od przedniej zewnętrznej krawędzi altany.");
+
     var r = compute();
     el("warn").innerHTML = r.warn.map(function (w) { return "<div>" + w + "</div>"; }).join("");
     if (r.bad) {
-      el("stats").innerHTML = ""; el("plan").innerHTML = ""; el("mat").innerHTML = "";
-      el("posts").innerHTML = ""; el("tbl").innerHTML = ""; el("steps").innerHTML = "";
+      ["stats", "plan", "mat", "posts", "tbl", "steps"].forEach(function (id) { el(id).innerHTML = ""; });
       return;
     }
     var p = r.p;
     save();
+    var dWall = r.p.door ? r.walls[p.dWall] : null;
+    var hasDoor = !!(dWall && dWall.door);
 
     el("stats").innerHTML = [
       stat("Kostka do kupienia", f(r.areaW, 1), "m²", "powierzchnia " + f(r.area, 2) + " m² + " + f(p.waste * 100, 0) + "%"),
-      stat("Palety", f(Math.ceil(r.pallets * 10) / 10, 1), "szt.", "po " + f(p.pallet, 1) + " m²", false),
-      stat("Słupki", String(r.pts.length), "szt.", (r.nx + 1) + " na froncie, " + (r.ny + 1) + " na boku", true),
-      stat("Rozstaw osiowy", fcm(Math.max(r.dx, r.dy)), "cm", r.dx.toFixed(3) === r.dy.toFixed(3) ? "na wszystkich ścianach" : "front " + fcm(r.dx) + " · bok " + fcm(r.dy), false)
+      stat("Palety", f(Math.ceil(r.pallets * 10) / 10, 1), "szt.", "po " + f(p.pallet, 1) + " m²"),
+      stat("Słupki", String(r.pts.length), "szt.", hasDoor ? "w tym " + r.doorPts.length + " przy drzwiach" : "tylko na obwodzie", true),
+      stat("Najdłuższe przęsło", fcm(r.maxSpan), "cm", "w osiach, maks. " + fcm(p.span))
     ].join("");
 
     el("mat").innerHTML = [
@@ -456,35 +573,42 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       row("Cement do podsypki", "~" + Math.ceil(r.cementKg / 25) + " worków 25 kg")
     ].join("");
 
-    el("posts").innerHTML = [
-      row("Liczba słupków", r.pts.length + " szt."),
-      row("Przęsła na froncie / tyle", r.nx + " × " + fcm(r.dx) + " cm (oś)"),
-      row("Przęsła na bokach", r.ny + " × " + fcm(r.dy) + " cm (oś)"),
-      row("Prześwit między słupkami<small>front / bok</small>", fcm(r.dx - p.s) + " / " + fcm(r.dy - p.s) + " cm"),
-      row("Kotwy / marki słupków", r.pts.length + " szt."),
-      row("Stopy " + fcm(p.foot) + " × " + fcm(p.foot) + " × " + fcm(p.depth) + " cm", f(r.footV, 2) + " m³ betonu"),
-      row("Suchy beton B20, worki 25 kg", "~" + r.footBags + " szt."),
-      row("Przekątna osi słupków", fcm(r.diagAxis) + " cm"),
-      row("Przekątna po zewnątrz altany", fcm(r.diagOut) + " cm")
-    ].join("");
+    var postRows = [row("Liczba słupków", r.pts.length + " szt.")];
+    WALLS.forEach(function (n) { postRows.push(row("Przęsła: " + n + "<small>rozstaw w osiach</small>", spanText(r.walls[n]))); });
+    if (hasDoor) {
+      postRows.push(row("Słupki przy drzwiach<small>ściana: " + p.dWall + "</small>", r.doorPts.map(function (q) { return q.id; }).join(" i ")));
+      postRows.push(row("Prześwit drzwi", fcm(dWall.door.w) + " cm"));
+      postRows.push(row("Nadproże<small>belka nad drzwiami, z oparciem na słupkach</small>", "min. " + fcm(dWall.door.w + 2 * p.s) + " cm"));
+    }
+    postRows.push(row("Kotwy / marki słupków", r.pts.length + " szt."));
+    postRows.push(row("Stopy " + fcm(p.foot) + " × " + fcm(p.foot) + " × " + fcm(p.depth) + " cm", f(r.footV, 2) + " m³ betonu"));
+    postRows.push(row("Suchy beton B20, worki 25 kg", "~" + r.footBags + " szt."));
+    postRows.push(row("Przekątna osi narożnych słupków", fcm(r.diagAxis) + " cm"));
+    el("posts").innerHTML = postRows.join("");
 
-    // tabela
     var html = "";
     r.pts.forEach(function (q) {
-      html += "<tr><td><span class=\"pid\">" + q.id + "</span></td><td class=\"l\">" + q.wall + "</td>" +
+      var desc = cap(q.wall) + (q.corner ? " (narożnik)" : "") + (q.door ? ' · <b style="color:var(--accent)">drzwi</b>' : "");
+      html += "<tr><td><span class=\"pid" + (q.door ? " door" : "") + "\">" + q.id + "</span></td><td class=\"l\">" + desc + "</td>" +
         "<td class=\"mono\">" + fcm(q.kx) + "</td><td class=\"mono\">" + fcm(q.ky) + "</td>" +
         "<td class=\"mono\">" + fcm(q.ax) + "</td><td class=\"mono\">" + fcm(q.ay) + "</td></tr>";
     });
     el("tbl").innerHTML = html;
 
-    el("steps").innerHTML = [
+    var steps = [
       "Wbij palik w lewym przednim rogu kostki (punkt 0) i rozciągnij sznurek wzdłuż frontu na " + fcm(r.KX) + " cm.",
       "Wyznacz kąt prosty metodą 3-4-5 (np. 60 / 80 / 100 cm) i rozciągnij drugi sznurek w głąb na " + fcm(r.KY) + " cm.",
       "Sprawdź prostokąt kostki: obie przekątne muszą mieć po " + fcm(Math.sqrt(r.KX * r.KX + r.KY * r.KY)) + " cm.",
       "Odmierz od punktu 0: " + fcm(r.ox + p.s / 2) + " cm wzdłuż frontu i " + fcm(r.oy + p.s / 2) + " cm w głąb. To środek słupka S1.",
-      "Rozmierz pozostałe słupki według tabeli. Przekątne między środkami narożnych słupków muszą mieć po " + fcm(r.diagAxis) + " cm.",
-      "Wykop i zalej stopy fundamentowe z kotwami, a dopiero po związaniu betonu koryto pod kostkę na głębokość " + fcm(r.dig) + " cm."
-    ].map(function (t) { return "<li>" + t + "</li>"; }).join("");
+      "Rozmierz pozostałe słupki według tabeli. Przekątne między środkami narożnych słupków muszą mieć po " + fcm(r.diagAxis) + " cm."
+    ];
+    if (hasDoor) {
+      var dp = r.doorPts;
+      steps.push("Słupki " + dp.map(function (q) { return q.id; }).join(" i ") + " trzymają drzwi. Ich osie muszą być " + fcm(dWall.door.w + p.s) +
+        " cm od siebie, żeby prześwit wyszedł " + fcm(dWall.door.w) + " cm. Kotwy ustaw dokładnie w linii ściany, bo krzywo osadzonych drzwi nie da się potem wyregulować.");
+    }
+    steps.push("Wykop i zalej stopy fundamentowe z kotwami, a dopiero po związaniu betonu koryto pod kostkę na głębokość " + fcm(r.dig) + " cm.");
+    el("steps").innerHTML = steps.map(function (t) { return "<li>" + t + "</li>"; }).join("");
 
     el("plan").innerHTML = drawPlan(r);
   }
@@ -497,32 +621,42 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   // ---------- rysunek ----------
   function drawPlan(r) {
     var p = r.p;
-    var W = 760;
-    var padL = 96, padR = 40, padT = 64, padB = 100;
+    var W = 780;
+    var padL = 96, padR = 96, padT = 96, padB = 100;
     var k = (W - padL - padR) / r.KX;
     var H = Math.round(padT + padB + r.KY * k);
-    // y w modelu rośnie w głąb (od frontu); na rysunku front jest na dole
     function X(x) { return padL + x * k; }
-    function Y(y) { return padT + (r.KY - y) * k; }
+    function Y(y) { return padT + (r.KY - y) * k; } // front na dole
     var o = [];
     o.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rzut altanki z rozmieszczeniem słupków">');
     o.push('<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
       '<rect width="10" height="10" class="svg-hatch-bg"/><line x1="0" y1="0" x2="0" y2="10" class="svg-hatch-line"/></pattern></defs>');
-    o.push('<g style="color:var(--ink)">');
 
-    // kostka
     o.push(rect(X(0), Y(r.KY), r.KX * k, r.KY * k, "svg-pave"));
-    // obrys altany
     o.push(rect(X(r.ox), Y(r.oy + p.B), p.A * k, p.B * k, "svg-outline"));
-    // osie słupków
     o.push(rect(X(r.ox + p.s / 2), Y(r.oy + p.B - p.s / 2), r.LA * k, r.LB * k, "svg-axis"));
+
+    // drzwi: skrzydło + łuk otwierania
+    var dWall = p.door ? r.walls[p.dWall] : null;
+    if (dWall && dWall.door) {
+      var d = dWall.door, n = wallInward(p.dWall);
+      var h = wallPoint(p, p.dWall, d.d0), j = wallPoint(p, p.dWall, d.d0 + d.w);
+      var H1 = { x: X(h.x + r.ox), y: Y(h.y + r.oy) }, J1 = { x: X(j.x + r.ox), y: Y(j.y + r.oy) };
+      var E1 = { x: X(h.x + r.ox + n.x * d.w), y: Y(h.y + r.oy + n.y * d.w) };
+      var cross = (E1.x - H1.x) * (J1.y - H1.y) - (E1.y - H1.y) * (J1.x - H1.x);
+      o.push('<line x1="' + H1.x.toFixed(1) + '" y1="' + H1.y.toFixed(1) + '" x2="' + J1.x.toFixed(1) + '" y2="' + J1.y.toFixed(1) + '" class="svg-door-gap"/>');
+      o.push('<line x1="' + H1.x.toFixed(1) + '" y1="' + H1.y.toFixed(1) + '" x2="' + E1.x.toFixed(1) + '" y2="' + E1.y.toFixed(1) + '" class="svg-door"/>');
+      o.push('<path d="M' + E1.x.toFixed(1) + ' ' + E1.y.toFixed(1) + ' A' + (d.w * k).toFixed(1) + ' ' + (d.w * k).toFixed(1) + ' 0 0 ' + (cross > 0 ? 1 : 0) + ' ' + J1.x.toFixed(1) + ' ' + J1.y.toFixed(1) + '" class="svg-door-arc"/>');
+      var mx = (H1.x + J1.x) / 2 + n.x * 16, my = (H1.y + J1.y) / 2 - n.y * 16;
+      var rot = (p.dWall === "lewa" || p.dWall === "prawa") ? ' transform="rotate(-90 ' + mx.toFixed(1) + ' ' + my.toFixed(1) + ')"' : "";
+      o.push('<text x="' + mx.toFixed(1) + '" y="' + my.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" class="svg-dimtxt acc"' + rot + '>drzwi ' + fcm(d.w) + '</text>');
+    }
 
     // słupki
     var ps = Math.max(p.s * k, 7);
     r.pts.forEach(function (q) {
       var cx = X(q.kx), cy = Y(q.ky);
-      o.push(rect(cx - ps / 2, cy - ps / 2, ps, ps, "svg-post"));
-      // etykieta do środka altany
+      o.push(rect(cx - ps / 2, cy - ps / 2, ps, ps, "svg-post" + (q.door ? " door" : "")));
       var dxl = q.ax < p.A / 2 - 1e-6 ? 1 : (q.ax > p.A / 2 + 1e-6 ? -1 : 0);
       var dyl = q.ay < p.B / 2 - 1e-6 ? 1 : (q.ay > p.B / 2 + 1e-6 ? -1 : 0);
       var lx = cx + dxl * (ps / 2 + 5), ly = cy - dyl * (ps / 2 + 5);
@@ -532,36 +666,30 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       o.push('<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + anchor + '" dominant-baseline="' + base + '" class="svg-plabel">' + q.id + '</text>');
     });
 
-    // punkt 0
     o.push('<circle cx="' + X(0) + '" cy="' + Y(0) + '" r="4" class="svg-zero"/>');
     o.push('<text x="' + (X(0) - 8) + '" y="' + (Y(0) + 4) + '" text-anchor="end" class="svg-dimtxt big">0</text>');
 
-    // wymiary dolne: łańcuch osi słupków (od kostki) + całość kostki
-    var y1 = Y(0) + 26, y2 = Y(0) + 56;
-    var xs = [0, r.ox + p.s / 2];
-    for (var i = 1; i <= r.nx; i++) xs.push(r.ox + p.s / 2 + i * r.dx);
-    xs.push(r.KX);
-    o.push(chainH(xs, y1, Y(0), X, false));
-    o.push(chainH([0, r.KX], y2, Y(0), X, true));
-    o.push('<text x="' + X(r.KX / 2) + '" y="' + (y2 + 30) + '" text-anchor="middle" class="svg-front">▲ front / wejście</text>');
+    function chainVals(name, off, total) {
+      var v = [0];
+      r.walls[name].pos.forEach(function (q) { v.push(off + q.u); });
+      v.push(total);
+      return v;
+    }
+    // dół: front + całość kostki
+    o.push(chainH(chainVals("przód", r.ox, r.KX), Y(0) + 26, Y(0), X, false, false, r.walls["przód"]));
+    o.push(chainH([0, r.KX], Y(0) + 56, Y(0), X, true));
+    o.push('<text x="' + X(r.KX / 2) + '" y="' + (Y(0) + 86) + '" text-anchor="middle" class="svg-front">▲ front</text>');
+    // góra: tył + zewnętrzny wymiar altany
+    o.push(chainH(chainVals("tył", r.ox, r.KX), Y(r.KY) - 26, Y(r.KY), X, false, false, r.walls["tył"]));
+    o.push(chainH([r.ox, r.ox + p.A], Y(r.KY) - 60, Y(r.KY), X, true, true));
+    // lewo: lewa ściana + całość kostki
+    o.push(chainV(chainVals("lewa", r.oy, r.KY), X(0) - 26, X(0), Y, false, false, r.walls["lewa"]));
+    o.push(chainV([0, r.KY], X(0) - 60, X(0), Y, true));
+    // prawo: prawa ściana + bok altany
+    o.push(chainV(chainVals("prawa", r.oy, r.KY), X(r.KX) + 26, X(r.KX), Y, false, false, r.walls["prawa"]));
+    o.push(chainV([r.oy, r.oy + p.B], X(r.KX) + 60, X(r.KX), Y, true, true));
 
-    // wymiar górny: zewnętrzny wymiar altany
-    var yt = Y(r.KY) - 26;
-    o.push(chainH([r.ox, r.ox + p.A], yt, Y(r.oy + p.B), X, true, true));
-
-    // wymiary lewe: łańcuch osi + całość kostki
-    var x1 = X(0) - 26, x2 = X(0) - 60;
-    var ys = [0, r.oy + p.s / 2];
-    for (i = 1; i <= r.ny; i++) ys.push(r.oy + p.s / 2 + i * r.dy);
-    ys.push(r.KY);
-    o.push(chainV(ys, x1, X(0), Y, false));
-    o.push(chainV([0, r.KY], x2, X(0), Y, true));
-
-    // wymiar prawy: bok altany
-    var xr = X(r.KX) + 22;
-    o.push(chainV([r.oy, r.oy + p.B], xr, X(r.ox + p.A), Y, true, true));
-
-    o.push('</g></svg>');
+    o.push('</svg>');
     return o.join("");
   }
 
@@ -571,27 +699,28 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   function line(x1, y1, x2, y2, extra) {
     return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" class="svg-dim"' + (extra || "") + '/>';
   }
-  function chainH(vals, y, fromY, X, big, acc) {
-    var s = "";
-    s += line(X(vals[0]), y, X(vals[vals.length - 1]), y);
+  // czy odcinek i łańcucha to przejście drzwiowe (łańcuch = [0, pozycje słupków..., koniec])
+  function isDoorSeg(wall, i) { return !!(wall && wall.door && i - 1 === wall.door.gi); }
+  function chainH(vals, y, fromY, X, big, acc, wall) {
+    var s = line(X(vals[0]), y, X(vals[vals.length - 1]), y);
+    var dir = fromY < y ? 1 : -1;
     for (var i = 0; i < vals.length; i++) {
-      s += line(X(vals[i]), fromY + (fromY < y ? 4 : -4), X(vals[i]), y + (fromY < y ? 5 : -5), ' stroke-opacity="0.45"');
+      s += line(X(vals[i]), fromY + dir * 4, X(vals[i]), y + dir * 5, ' stroke-opacity="0.45"');
       s += line(X(vals[i]) - 3, y + 3, X(vals[i]) + 3, y - 3, ' stroke-width="1.4"');
     }
     for (i = 0; i < vals.length - 1; i++) {
-      var w = (vals[i + 1] - vals[i]);
       var px = X(vals[i + 1]) - X(vals[i]);
-      var txt = fcm(w);
+      var txt = fcm(vals[i + 1] - vals[i]);
       if (px < txt.length * 6.6 + 4) continue;
-      s += '<text x="' + ((X(vals[i]) + X(vals[i + 1])) / 2).toFixed(1) + '" y="' + (y - 5).toFixed(1) + '" text-anchor="middle" class="svg-dimtxt' + (big ? " big" : "") + (acc ? " acc" : "") + '">' + txt + '</text>';
+      var a = acc || isDoorSeg(wall, i);
+      s += '<text x="' + ((X(vals[i]) + X(vals[i + 1])) / 2).toFixed(1) + '" y="' + (y - 5).toFixed(1) + '" text-anchor="middle" class="svg-dimtxt' + (big ? " big" : "") + (a ? " acc" : "") + '">' + txt + '</text>';
     }
     return s;
   }
-  function chainV(vals, x, fromX, Y, big, acc) {
-    var s = "";
-    s += line(x, Y(vals[0]), x, Y(vals[vals.length - 1]));
+  function chainV(vals, x, fromX, Y, big, acc, wall) {
+    var s = line(x, Y(vals[0]), x, Y(vals[vals.length - 1]));
+    var dir = fromX > x ? 1 : -1;
     for (var i = 0; i < vals.length; i++) {
-      var dir = fromX > x ? 1 : -1;
       s += line(fromX - dir * 4, Y(vals[i]), x - dir * 5, Y(vals[i]), ' stroke-opacity="0.45"');
       s += line(x - 3, Y(vals[i]) + 3, x + 3, Y(vals[i]) - 3, ' stroke-width="1.4"');
     }
@@ -600,8 +729,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       var txt = fcm(vals[i + 1] - vals[i]);
       if (ph < txt.length * 6.6 + 4) continue;
       var cy = (Y(vals[i]) + Y(vals[i + 1])) / 2;
-      var tx = fromX > x ? x - 5 : x + 13;
-      s += '<text x="' + tx.toFixed(1) + '" y="' + cy.toFixed(1) + '" text-anchor="middle" transform="rotate(-90 ' + tx.toFixed(1) + ' ' + cy.toFixed(1) + ')" class="svg-dimtxt' + (big ? " big" : "") + (acc ? " acc" : "") + '">' + txt + '</text>';
+      var tx = x - 5;
+      var a = acc || isDoorSeg(wall, i);
+      s += '<text x="' + tx.toFixed(1) + '" y="' + cy.toFixed(1) + '" text-anchor="middle" transform="rotate(-90 ' + tx.toFixed(1) + ' ' + cy.toFixed(1) + ')" class="svg-dimtxt' + (big ? " big" : "") + (a ? " acc" : "") + '">' + txt + '</text>';
     }
     return s;
   }
@@ -620,11 +750,16 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     L.push("Kruszywo 0–31,5: " + f(r.baseLoose, 2) + " m³");
     L.push("Piasek: " + f(r.bedLoose, 2) + " m³, cement: ~" + Math.ceil(r.cementKg / 25) + " worków");
     L.push("");
-    L.push("Słupki " + fcm(p.s) + "×" + fcm(p.s) + " cm: " + r.pts.length + " szt. (front " + r.nx + "×" + fcm(r.dx) + " cm, bok " + r.ny + "×" + fcm(r.dy) + " cm w osiach)");
+    L.push("Słupki " + fcm(p.s) + "×" + fcm(p.s) + " cm: " + r.pts.length + " szt.");
+    WALLS.forEach(function (n) { L.push("  " + cap(n) + ": " + spanText(r.walls[n])); });
+    var dWall = p.door ? r.walls[p.dWall] : null;
+    if (dWall && dWall.door) {
+      L.push("Drzwi (" + p.dWall + "): prześwit " + fcm(dWall.door.w) + " cm, słupki " + r.doorPts.map(function (q) { return q.id; }).join(" i ") + ", nadproże min. " + fcm(dWall.door.w + 2 * p.s) + " cm");
+    }
     L.push("Kotwy: " + r.pts.length + " szt., beton na stopy: " + f(r.footV, 2) + " m³ (~" + r.footBags + " worków 25 kg)");
     L.push("");
     L.push("Pozycje słupków od lewego przedniego rogu kostki (X wzdłuż frontu / Y w głąb, cm):");
-    r.pts.forEach(function (q) { L.push(q.id + ": " + fcm(q.kx) + " / " + fcm(q.ky) + "  (" + q.wall + ")"); });
+    r.pts.forEach(function (q) { L.push(q.id + ": " + fcm(q.kx) + " / " + fcm(q.ky) + "  (" + q.wall + (q.corner ? ", narożnik" : "") + (q.door ? ", drzwi" : "") + ")"); });
     return L.join("\n");
   }
 
