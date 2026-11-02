@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kalkulator altanki</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: panel parametrów po lewej (lepki), po prawej wyniki → rzut z wymiarami → tabela słupków. Na telefonie jedna kolumna. */
+:root {
+  --bg: #e9ece9;
+  --surface: #f7f8f6;
+  --ink: #1c2422;
+  --muted: #5b6864;
+  --line: #c6cdc9;
+  --pave: #aab3ae;
+  --pave-fill: #dde2de;
+  --accent: #d2440c;       /* pomarańcz sprayu do znakowania */
+  --accent-ink: #ffffff;
+  --timber: #8a5a2b;
+  --warn-bg: #fff1d6;
+  --warn-ink: #7a4a00;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131817; --surface: #1b2220; --ink: #e4e9e6; --muted: #98a5a0; --line: #33403c;
+    --pave: #4a5753; --pave-fill: #232c29; --accent: #ff7436; --accent-ink: #1a0e07; --timber: #c98f55;
+    --warn-bg: #3a2c12; --warn-ink: #ffd27a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131817; --surface: #1b2220; --ink: #e4e9e6; --muted: #98a5a0; --line: #33403c;
+  --pave: #4a5753; --pave-fill: #232c29; --accent: #ff7436; --accent-ink: #1a0e07; --timber: #c98f55;
+  --warn-bg: #3a2c12; --warn-ink: #ffd27a; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+h1 {
+  font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 44px);
+  line-height: 1; margin: 0; letter-spacing: 0.01em; text-transform: uppercase; text-wrap: balance;
+}
+h1 span { color: var(--accent); }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 18px; display: grid; gap: 18px;
+}
+@media (min-width: 861px) { .panel.sticky { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; } }
+
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
+legend {
+  font-family: var(--font-display); font-weight: 700; font-size: 18px; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 0; margin-bottom: 4px; display: flex; gap: 8px; align-items: center;
+}
+legend i { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+label { display: grid; gap: 3px; font-size: 13px; color: var(--muted); font-weight: 600; }
+label.check { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); font-weight: 400; font-size: 14px; }
+label.check input { margin-top: 3px; accent-color: var(--accent); }
+.unit { position: relative; display: block; }
+.unit::after {
+  content: attr(data-u); position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted); pointer-events: none;
+}
+input[type="number"], select {
+  width: 100%; font: inherit; font-family: var(--font-mono); font-size: 15px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 7px 34px 7px 10px;
+  font-variant-numeric: tabular-nums;
+}
+select { font-family: var(--font-body); padding-right: 10px; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+button {
+  font: inherit; font-weight: 600; font-size: 14px; border-radius: 4px; padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+}
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:hover { filter: brightness(0.97); }
+
+.main { display: grid; gap: 20px; min-width: 0; }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+@media (max-width: 620px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.stat .k { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.stat .v { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.stat .v small { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+.stat .s { font-size: 13px; color: var(--muted); }
+.stat.hot .v { color: var(--accent); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+h2 {
+  font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 0; text-transform: uppercase; letter-spacing: 0.03em;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
+}
+h2 .tag { font-family: var(--font-body); text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 400; color: var(--muted); }
+
+.plan-box { overflow-x: auto; }
+.plan-box svg { display: block; width: 100%; height: auto; min-width: 480px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; display: inline-block; border: 1px solid var(--line); }
+
+.warn { background: var(--warn-bg); color: var(--warn-ink); border-radius: 4px; padding: 10px 12px; font-size: 14px; }
+.warn:empty { display: none; }
+
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child, th.l, td.l { text-align: left; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+td.mono, td .mono { font-family: var(--font-mono); font-size: 13.5px; }
+.pid { display: inline-grid; place-items: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 3px; background: var(--accent); color: var(--accent-ink); font-family: var(--font-mono); font-weight: 600; font-size: 12.5px; }
+tr.group td { background: var(--bg); font-weight: 600; text-align: left; font-size: 13px; color: var(--muted); }
+
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 1000px) { .two { grid-template-columns: minmax(0, 1fr); } }
+
+dl.mat { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+dl.mat dt, dl.mat dd { margin: 0; padding: 7px 0; border-bottom: 1px solid var(--line); }
+dl.mat dd { text-align: right; font-family: var(--font-mono); font-size: 13.5px; font-variant-numeric: tabular-nums; padding-left: 12px; }
+dl.mat dt small { display: block; color: var(--muted); font-size: 12.5px; }
+
+ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75ch; }
+.note { font-size: 13px; color: var(--muted); margin: 0; max-width: 75ch; }
+
+/* SVG */
+.svg-pave { fill: url(#hatch); stroke: var(--pave); stroke-width: 1.5; }
+.svg-hatch-bg { fill: var(--pave-fill); }
+.svg-hatch-line { stroke: var(--pave); stroke-width: 1; }
+.svg-outline { fill: none; stroke: var(--timber); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.svg-axis { fill: none; stroke: var(--muted); stroke-width: 0.8; stroke-dasharray: 2 3; }
+.svg-post { fill: var(--accent); stroke: var(--ink); stroke-width: 1; }
+.svg-plabel { fill: var(--ink); font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.svg-dim { stroke: var(--ink); stroke-width: 0.9; fill: none; }
+.svg-dimtxt { fill: var(--ink); font-family: var(--font-mono); font-size: 11px; }
+.svg-dimtxt.big { font-size: 12px; font-weight: 600; }
+.svg-dimtxt.acc { fill: var(--accent); font-weight: 600; }
+.svg-front { fill: var(--muted); font-family: var(--font-body); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.svg-zero { fill: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Kalkulator <span>altanki</span></h1>
+    <p class="lede">Podaj wymiary altanki lub domku. Policzę kostkę pod spodem i materiał na podbudowę, a potem rozstawię słupki i podam, gdzie dokładnie je wytyczyć.</p>
+  </header>
+
+  <div class="layout">
+    <form class="panel sticky" id="form" autocomplete="off">
+      <fieldset>
+        <legend><i style="background:var(--timber)"></i>Altana</legend>
+        <div class="row">
+          <label>Długość (front)
+            <span class="unit" data-u="m"><input type="number" id="A" step="0.05" min="1" value="4.00"></span>
+          </label>
+          <label>Szerokość (bok)
+            <span class="unit" data-u="m"><input type="number" id="B" step="0.05" min="1" value="3.00"></span>
+          </label>
+        </div>
+        <p class="hint">Wymiar po zewnętrznych krawędziach słupków.</p>
+        <div class="row">
+          <label>Maks. rozstaw słupków
+            <span class="unit" data-u="m"><input type="number" id="span" step="0.05" min="0.5" value="2.00"></span>
+          </label>
+          <label>Przekrój słupka
+            <span class="unit" data-u="cm"><input type="number" id="post" step="1" min="5" value="12"></span>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="ridge" checked> Słupek na środku krótszych ścian (pod kalenicę dachu dwuspadowego)</label>
+      </fieldset>
+
+      <fieldset>
+        <legend><i style="background:var(--pave)"></i>Kostka</legend>
+        <div class="row">
+          <label>Wysunięcie poza słupki
+            <span class="unit" data-u="m"><input type="number" id="margin" step="0.05" min="0" value="0.30"></span>
+          </label>
+          <label>Dodatkowo z przodu
+            <span class="unit" data-u="m"><input type="number" id="front" step="0.05" min="0" value="0.50"></span>
+          </label>
+        </div>
+        <label>Format kostki
+          <select id="fmt">
+            <option value="50">Holland 20 × 10 cm (50 szt./m²)</option>
+            <option value="36">Behaton 19,8 × 16,5 cm (ok. 36 szt./m²)</option>
+            <option value="25">Kwadrat 20 × 20 cm (25 szt./m²)</option>
+            <option value="11.1">Płyta 30 × 30 cm (11,1 szt./m²)</option>
+            <option value="6.25">Płyta 40 × 40 cm (6,25 szt./m²)</option>
+            <option value="4">Płyta 50 × 50 cm (4 szt./m²)</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>Grubość kostki
+            <span class="unit" data-u="cm"><input type="number" id="thick" step="1" min="4" value="6"></span>
+          </label>
+          <label>Zapas na docinki
+            <span class="unit" data-u="%"><input type="number" id="waste" step="1" min="0" value="7"></span>
+          </label>
+        </div>
+        <div class="row">
+          <label>Podsypka
+            <span class="unit" data-u="cm"><input type="number" id="bed" step="1" min="0" value="4"></span>
+          </label>
+          <label>Podbudowa (kruszywo)
+            <span class="unit" data-u="cm"><input type="number" id="base" step="1" min="0" value="15"></span>
+          </label>
+        </div>
+        <label>m² kostki na palecie
+          <span class="unit" data-u="m²"><input type="number" id="pallet" step="0.1" min="1" value="10.8"></span>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend><i style="background:var(--muted)"></i>Fundament słupka</legend>
+        <div class="row">
+          <label>Bok stopy
+            <span class="unit" data-u="cm"><input type="number" id="foot" step="5" min="15" value="40"></span>
+          </label>
+          <label>Głębokość stopy
+            <span class="unit" data-u="cm"><input type="number" id="depth" step="5" min="20" value="80"></span>
+          </label>
+        </div>
+        <p class="hint">W Polsce strefa przemarzania to 80–140 cm, zależnie od regionu.</p>
+      </fieldset>
+
+      <div class="btns">
+        <button type="button" class="primary" id="copy">Kopiuj listę zakupów</button>
+        <button type="button" id="reset">Przywróć przykład</button>
+      </div>
+      <p class="hint" id="copyMsg" aria-live="polite"></p>
+    </form>
+
+    <div class="main">
+      <div class="stats" id="stats"></div>
+      <div class="warn" id="warn"></div>
+
+      <section class="card">
+        <h2>Rzut z góry <span class="tag">wymiary w cm, punkt 0 = lewy przedni róg kostki</span></h2>
+        <div class="plan-box" id="plan"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--pave-fill);border-color:var(--pave)"></i>kostka</span>
+          <span><i class="sw" style="border:1.5px dashed var(--timber);background:transparent"></i>obrys altany</span>
+          <span><i class="sw" style="background:var(--accent);border-color:var(--ink)"></i>słupek</span>
+          <span><i class="sw" style="border:1px dotted var(--muted);background:transparent"></i>osie słupków</span>
+        </div>
+      </section>
+
+      <div class="two">
+        <section class="card">
+          <h2>Kostka i podbudowa</h2>
+          <dl class="mat" id="mat"></dl>
+          <p class="note">Ilości kruszywa i piasku podane są luzem, czyli tyle, ile trzeba zamówić przed zagęszczeniem (×1,25). Cement liczony orientacyjnie dla podsypki 1:4.</p>
+        </section>
+        <section class="card">
+          <h2>Słupki i fundamenty</h2>
+          <dl class="mat" id="posts"></dl>
+          <p class="note">Rozstaw jest wyrównany, więc każde przęsło na danej ścianie ma tę samą długość i żadne nie przekracza podanego maksimum.</p>
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>Gdzie wbić słupki <span class="tag">środek słupka, w cm</span></h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Słupek</th>
+                <th class="l">Ściana</th>
+                <th>X od kostki</th>
+                <th>Y od kostki</th>
+                <th>X od narożnika altany</th>
+                <th>Y od narożnika altany</th>
+              </tr>
+            </thead>
+            <tbody id="tbl"></tbody>
+          </table>
+        </div>
+        <p class="note">X mierzysz wzdłuż frontu (od lewej), Y w głąb (od przodu). „Narożnik altany” to zewnętrzny róg słupka S1.</p>
+      </section>
+
+      <section class="card">
+        <h2>Jak wytyczyć w terenie</h2>
+        <ol class="steps" id="steps"></ol>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var IDS = ["A", "B", "span", "post", "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
+  var CHECKS = ["ridge"];
+  var KEY = "kalkulator-altanki-v1";
+  var defaults = {};
+  IDS.forEach(function (id) { defaults[id] = el(id).value; });
+  CHECKS.forEach(function (id) { defaults[id] = el(id).checked; });
+
+  function el(id) { return document.getElementById(id); }
+  function num(id) { var v = parseFloat(String(el(id).value).replace(",", ".")); return isFinite(v) ? v : 0; }
+  function f(v, d) {
+    if (d === undefined) d = 2;
+    return Number(v).toLocaleString("pl-PL", { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function cm(m) { return Math.round(m * 1000) / 10; }
+  function fcm(m) {
+    var c = cm(m);
+    return Number(c).toLocaleString("pl-PL", { maximumFractionDigits: 1 });
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      IDS.forEach(function (id) { if (s[id] !== undefined) el(id).value = s[id]; });
+      CHECKS.forEach(function (id) { if (s[id] !== undefined) el(id).checked = !!s[id]; });
+    } catch (e) {}
+  }
+  function save() {
+    try {
+      var s = {};
+      IDS.forEach(function (id) { s[id] = el(id).value; });
+      CHECKS.forEach(function (id) { s[id] = el(id).checked; });
+      localStorage.setItem(KEY, JSON.stringify(s));
+    } catch (e) {}
+  }
+
+  // ---------- obliczenia ----------
+  function compute() {
+    var p = {
+      A: num("A"), B: num("B"), span: num("span"), s: num("post") / 100,
+      m: num("margin"), fr: num("front"), perM2: parseFloat(el("fmt").value),
+      fmtName: el("fmt").options[el("fmt").selectedIndex].text.split(" (")[0],
+      thick: num("thick") / 100, waste: num("waste") / 100, bed: num("bed") / 100, base: num("base") / 100,
+      pallet: num("pallet"), foot: num("foot") / 100, depth: num("depth") / 100, ridge: el("ridge").checked
+    };
+    var warn = [];
+    if (p.A < 1 || p.B < 1) warn.push("Wymiary altany muszą mieć co najmniej 1 m.");
+    if (p.span < 0.5) warn.push("Maksymalny rozstaw słupków musi mieć co najmniej 0,5 m.");
+    if (p.s <= 0 || p.s * 2 >= Math.min(p.A, p.B)) warn.push("Przekrój słupka jest za duży w stosunku do wymiarów altany.");
+    if (warn.length) return { p: p, warn: warn, bad: true };
+
+    // osie słupków: od s/2 do A - s/2
+    var LA = p.A - p.s, LB = p.B - p.s;
+    var nx = Math.max(1, Math.ceil(LA / p.span - 1e-9));
+    var ny = Math.max(1, Math.ceil(LB / p.span - 1e-9));
+    // kalenica biegnie wzdłuż dłuższego boku → słupek na środku krótszych ścian
+    var shortIsB = p.B <= p.A;
+    if (p.ridge) {
+      if (shortIsB) { if (ny % 2) ny++; } else { if (nx % 2) nx++; }
+    }
+    var dx = LA / nx, dy = LB / ny;
+
+    // kostka
+    var KX = p.A + 2 * p.m;
+    var KY = p.B + 2 * p.m + p.fr;
+    var ox = p.m, oy = p.m + p.fr; // narożnik altany względem narożnika kostki
+
+    // słupki — numeracja zgodnie z ruchem wskazówek zegara od lewego przedniego
+    var pts = [];
+    var i;
+    function add(ix, iy, wall) {
+      var x = p.s / 2 + ix * dx, y = p.s / 2 + iy * dy;
+      pts.push({ ax: x, ay: y, kx: x + ox, ky: y + oy, wall: wall, corner: (ix === 0 || ix === nx) && (iy === 0 || iy === ny) });
+    }
+    for (i = 0; i <= nx; i++) add(i, 0, "przód");
+    for (i = 1; i <= ny; i++) add(nx, i, "prawa");
+    for (i = nx - 1; i >= 0; i--) add(i, ny, "tył");
+    for (i = ny - 1; i >= 1; i--) add(0, i, "lewa");
+    pts.forEach(function (q, k) { q.id = "S" + (k + 1); if (q.corner) q.wall += " (narożnik)"; });
+
+    var area = KX * KY;
+    var areaW = area * (1 + p.waste);
+    var pieces = Math.ceil(areaW * p.perM2);
+    var pallets = areaW / p.pallet;
+    var perim = 2 * (KX + KY);
+    var dig = p.thick + p.bed + p.base;
+    var exc = area * dig;
+    var baseLoose = area * p.base * 1.25;
+    var bedLoose = area * p.bed * 1.25;
+    var cementKg = bedLoose * 250;
+    var footV = pts.length * p.foot * p.foot * p.depth;
+    var footBags = Math.ceil(footV * 1000 / 12); // worek 25 kg suchej mieszanki ≈ 12 l betonu
+
+    if (dx < 0.6) warn.push("Rozstaw słupków wyszedł mniejszy niż 60 cm. Sprawdź, czy maksymalny rozstaw nie jest za mały.");
+    if (p.m < p.foot / 2 - p.s / 2) warn.push("Stopa fundamentowa wystaje poza kostkę. Zwiększ wysunięcie kostki lub zmniejsz stopę.");
+
+    return {
+      p: p, warn: warn, nx: nx, ny: ny, dx: dx, dy: dy, LA: LA, LB: LB, KX: KX, KY: KY, ox: ox, oy: oy, pts: pts,
+      area: area, areaW: areaW, pieces: pieces, pallets: pallets, perim: perim, dig: dig, exc: exc,
+      baseLoose: baseLoose, bedLoose: bedLoose, cementKg: cementKg, footV: footV, footBags: footBags,
+      diagAxis: Math.sqrt(LA * LA + LB * LB), diagOut: Math.sqrt(p.A * p.A + p.B * p.B), shortIsB: shortIsB
+    };
+  }
+
+  // ---------- render ----------
+  function render() {
+    var r = compute();
+    el("warn").innerHTML = r.warn.map(function (w) { return "<div>" + w + "</div>"; }).join("");
+    if (r.bad) {
+      el("stats").innerHTML = ""; el("plan").innerHTML = ""; el("mat").innerHTML = "";
+      el("posts").innerHTML = ""; el("tbl").innerHTML = ""; el("steps").innerHTML = "";
+      return;
+    }
+    var p = r.p;
+    save();
+
+    el("stats").innerHTML = [
+      stat("Kostka do kupienia", f(r.areaW, 1), "m²", "powierzchnia " + f(r.area, 2) + " m² + " + f(p.waste * 100, 0) + "%"),
+      stat("Palety", f(Math.ceil(r.pallets * 10) / 10, 1), "szt.", "po " + f(p.pallet, 1) + " m²", false),
+      stat("Słupki", String(r.pts.length), "szt.", (r.nx + 1) + " na froncie, " + (r.ny + 1) + " na boku", true),
+      stat("Rozstaw osiowy", fcm(Math.max(r.dx, r.dy)), "cm", r.dx.toFixed(3) === r.dy.toFixed(3) ? "na wszystkich ścianach" : "front " + fcm(r.dx) + " · bok " + fcm(r.dy), false)
+    ].join("");
+
+    el("mat").innerHTML = [
+      row("Wymiar kostki", f(r.KX, 2) + " × " + f(r.KY, 2) + " m"),
+      row("Powierzchnia netto", f(r.area, 2) + " m²"),
+      row("Z zapasem " + f(p.waste * 100, 0) + "%", f(r.areaW, 2) + " m²"),
+      row(p.fmtName + "<small>" + f(p.perM2, p.perM2 % 1 ? 2 : 0) + " szt./m²</small>", "ok. " + r.pieces.toLocaleString("pl-PL") + " szt."),
+      row("Obrzeża betonowe<small>obwód kostki, odcinki 1 m</small>", f(r.perim, 2) + " mb → " + Math.ceil(r.perim) + " szt."),
+      row("Głębokość korytowania<small>" + fcm(p.thick) + " kostka + " + fcm(p.bed) + " podsypka + " + fcm(p.base) + " podbudowa</small>", fcm(r.dig) + " cm"),
+      row("Ziemia z wykopu", f(r.exc, 2) + " m³"),
+      row("Kruszywo 0–31,5 mm", f(r.baseLoose, 2) + " m³ (~" + f(r.baseLoose * 1.6, 1) + " t)"),
+      row("Piasek na podsypkę", f(r.bedLoose, 2) + " m³"),
+      row("Cement do podsypki", "~" + Math.ceil(r.cementKg / 25) + " worków 25 kg")
+    ].join("");
+
+    el("posts").innerHTML = [
+      row("Liczba słupków", r.pts.length + " szt."),
+      row("Przęsła na froncie / tyle", r.nx + " × " + fcm(r.dx) + " cm (oś)"),
+      row("Przęsła na bokach", r.ny + " × " + fcm(r.dy) + " cm (oś)"),
+      row("Prześwit między słupkami<small>front / bok</small>", fcm(r.dx - p.s) + " / " + fcm(r.dy - p.s) + " cm"),
+      row("Kotwy / marki słupków", r.pts.length + " szt."),
+      row("Stopy " + fcm(p.foot) + " × " + fcm(p.foot) + " × " + fcm(p.depth) + " cm", f(r.footV, 2) + " m³ betonu"),
+      row("Suchy beton B20, worki 25 kg", "~" + r.footBags + " szt."),
+      row("Przekątna osi słupków", fcm(r.diagAxis) + " cm"),
+      row("Przekątna po zewnątrz altany", fcm(r.diagOut) + " cm")
+    ].join("");
+
+    // tabela
+    var html = "";
+    r.pts.forEach(function (q) {
+      html += "<tr><td><span class=\"pid\">" + q.id + "</span></td><td class=\"l\">" + q.wall + "</td>" +
+        "<td class=\"mono\">" + fcm(q.kx) + "</td><td class=\"mono\">" + fcm(q.ky) + "</td>" +
+        "<td class=\"mono\">" + fcm(q.ax) + "</td><td class=\"mono\">" + fcm(q.ay) + "</td></tr>";
+    });
+    el("tbl").innerHTML = html;
+
+    el("steps").innerHTML = [
+      "Wbij palik w lewym przednim rogu kostki (punkt 0) i rozciągnij sznurek wzdłuż frontu na " + fcm(r.KX) + " cm.",
+      "Wyznacz kąt prosty metodą 3-4-5 (np. 60 / 80 / 100 cm) i rozciągnij drugi sznurek w głąb na " + fcm(r.KY) + " cm.",
+      "Sprawdź prostokąt kostki: obie przekątne muszą mieć po " + fcm(Math.sqrt(r.KX * r.KX + r.KY * r.KY)) + " cm.",
+      "Odmierz od punktu 0: " + fcm(r.ox + p.s / 2) + " cm wzdłuż frontu i " + fcm(r.oy + p.s / 2) + " cm w głąb. To środek słupka S1.",
+      "Rozmierz pozostałe słupki według tabeli. Przekątne między środkami narożnych słupków muszą mieć po " + fcm(r.diagAxis) + " cm.",
+      "Wykop i zalej stopy fundamentowe z kotwami, a dopiero po związaniu betonu koryto pod kostkę na głębokość " + fcm(r.dig) + " cm."
+    ].map(function (t) { return "<li>" + t + "</li>"; }).join("");
+
+    el("plan").innerHTML = drawPlan(r);
+  }
+
+  function stat(k, v, u, s, hot) {
+    return "<div class=\"stat" + (hot ? " hot" : "") + "\"><span class=\"k\">" + k + "</span><span class=\"v\">" + v + "<small>" + u + "</small></span><span class=\"s\">" + s + "</span></div>";
+  }
+  function row(k, v) { return "<dt>" + k + "</dt><dd>" + v + "</dd>"; }
+
+  // ---------- rysunek ----------
+  function drawPlan(r) {
+    var p = r.p;
+    var W = 760;
+    var padL = 96, padR = 40, padT = 64, padB = 100;
+    var k = (W - padL - padR) / r.KX;
+    var H = Math.round(padT + padB + r.KY * k);
+    // y w modelu rośnie w głąb (od frontu); na rysunku front jest na dole
+    function X(x) { return padL + x * k; }
+    function Y(y) { return padT + (r.KY - y) * k; }
+    var o = [];
+    o.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rzut altanki z rozmieszczeniem słupków">');
+    o.push('<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+      '<rect width="10" height="10" class="svg-hatch-bg"/><line x1="0" y1="0" x2="0" y2="10" class="svg-hatch-line"/></pattern></defs>');
+    o.push('<g style="color:var(--ink)">');
+
+    // kostka
+    o.push(rect(X(0), Y(r.KY), r.KX * k, r.KY * k, "svg-pave"));
+    // obrys altany
+    o.push(rect(X(r.ox), Y(r.oy + p.B), p.A * k, p.B * k, "svg-outline"));
+    // osie słupków
+    o.push(rect(X(r.ox + p.s / 2), Y(r.oy + p.B - p.s / 2), r.LA * k, r.LB * k, "svg-axis"));
+
+    // słupki
+    var ps = Math.max(p.s * k, 7);
+    r.pts.forEach(function (q) {
+      var cx = X(q.kx), cy = Y(q.ky);
+      o.push(rect(cx - ps / 2, cy - ps / 2, ps, ps, "svg-post"));
+      // etykieta do środka altany
+      var dxl = q.ax < p.A / 2 - 1e-6 ? 1 : (q.ax > p.A / 2 + 1e-6 ? -1 : 0);
+      var dyl = q.ay < p.B / 2 - 1e-6 ? 1 : (q.ay > p.B / 2 + 1e-6 ? -1 : 0);
+      var lx = cx + dxl * (ps / 2 + 5), ly = cy - dyl * (ps / 2 + 5);
+      var anchor = dxl > 0 ? "start" : (dxl < 0 ? "end" : "middle");
+      var base = dyl > 0 ? "auto" : (dyl < 0 ? "hanging" : "middle");
+      if (dyl === 0) ly = cy;
+      o.push('<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + anchor + '" dominant-baseline="' + base + '" class="svg-plabel">' + q.id + '</text>');
+    });
+
+    // punkt 0
+    o.push('<circle cx="' + X(0) + '" cy="' + Y(0) + '" r="4" class="svg-zero"/>');
+    o.push('<text x="' + (X(0) - 8) + '" y="' + (Y(0) + 4) + '" text-anchor="end" class="svg-dimtxt big">0</text>');
+
+    // wymiary dolne: łańcuch osi słupków (od kostki) + całość kostki
+    var y1 = Y(0) + 26, y2 = Y(0) + 56;
+    var xs = [0, r.ox + p.s / 2];
+    for (var i = 1; i <= r.nx; i++) xs.push(r.ox + p.s / 2 + i * r.dx);
+    xs.push(r.KX);
+    o.push(chainH(xs, y1, Y(0), X, false));
+    o.push(chainH([0, r.KX], y2, Y(0), X, true));
+    o.push('<text x="' + X(r.KX / 2) + '" y="' + (y2 + 30) + '" text-anchor="middle" class="svg-front">▲ front / wejście</text>');
+
+    // wymiar górny: zewnętrzny wymiar altany
+    var yt = Y(r.KY) - 26;
+    o.push(chainH([r.ox, r.ox + p.A], yt, Y(r.oy + p.B), X, true, true));
+
+    // wymiary lewe: łańcuch osi + całość kostki
+    var x1 = X(0) - 26, x2 = X(0) - 60;
+    var ys = [0, r.oy + p.s / 2];
+    for (i = 1; i <= r.ny; i++) ys.push(r.oy + p.s / 2 + i * r.dy);
+    ys.push(r.KY);
+    o.push(chainV(ys, x1, X(0), Y, false));
+    o.push(chainV([0, r.KY], x2, X(0), Y, true));
+
+    // wymiar prawy: bok altany
+    var xr = X(r.KX) + 22;
+    o.push(chainV([r.oy, r.oy + p.B], xr, X(r.ox + p.A), Y, true, true));
+
+    o.push('</g></svg>');
+    return o.join("");
+  }
+
+  function rect(x, y, w, h, cls) {
+    return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) + '" class="' + cls + '"/>';
+  }
+  function line(x1, y1, x2, y2, extra) {
+    return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" class="svg-dim"' + (extra || "") + '/>';
+  }
+  function chainH(vals, y, fromY, X, big, acc) {
+    var s = "";
+    s += line(X(vals[0]), y, X(vals[vals.length - 1]), y);
+    for (var i = 0; i < vals.length; i++) {
+      s += line(X(vals[i]), fromY + (fromY < y ? 4 : -4), X(vals[i]), y + (fromY < y ? 5 : -5), ' stroke-opacity="0.45"');
+      s += line(X(vals[i]) - 3, y + 3, X(vals[i]) + 3, y - 3, ' stroke-width="1.4"');
+    }
+    for (i = 0; i < vals.length - 1; i++) {
+      var w = (vals[i + 1] - vals[i]);
+      var px = X(vals[i + 1]) - X(vals[i]);
+      var txt = fcm(w);
+      if (px < txt.length * 6.6 + 4) continue;
+      s += '<text x="' + ((X(vals[i]) + X(vals[i + 1])) / 2).toFixed(1) + '" y="' + (y - 5).toFixed(1) + '" text-anchor="middle" class="svg-dimtxt' + (big ? " big" : "") + (acc ? " acc" : "") + '">' + txt + '</text>';
+    }
+    return s;
+  }
+  function chainV(vals, x, fromX, Y, big, acc) {
+    var s = "";
+    s += line(x, Y(vals[0]), x, Y(vals[vals.length - 1]));
+    for (var i = 0; i < vals.length; i++) {
+      var dir = fromX > x ? 1 : -1;
+      s += line(fromX - dir * 4, Y(vals[i]), x - dir * 5, Y(vals[i]), ' stroke-opacity="0.45"');
+      s += line(x - 3, Y(vals[i]) + 3, x + 3, Y(vals[i]) - 3, ' stroke-width="1.4"');
+    }
+    for (i = 0; i < vals.length - 1; i++) {
+      var ph = Y(vals[i]) - Y(vals[i + 1]);
+      var txt = fcm(vals[i + 1] - vals[i]);
+      if (ph < txt.length * 6.6 + 4) continue;
+      var cy = (Y(vals[i]) + Y(vals[i + 1])) / 2;
+      var tx = fromX > x ? x - 5 : x + 13;
+      s += '<text x="' + tx.toFixed(1) + '" y="' + cy.toFixed(1) + '" text-anchor="middle" transform="rotate(-90 ' + tx.toFixed(1) + ' ' + cy.toFixed(1) + ')" class="svg-dimtxt' + (big ? " big" : "") + (acc ? " acc" : "") + '">' + txt + '</text>';
+    }
+    return s;
+  }
+
+  // ---------- kopiowanie ----------
+  function shoppingText() {
+    var r = compute();
+    if (r.bad) return "";
+    var p = r.p;
+    var L = [];
+    L.push("ALTANA " + f(p.A, 2) + " × " + f(p.B, 2) + " m");
+    L.push("");
+    L.push("Kostka (" + p.fmtName + ", " + fcm(p.thick) + " cm): " + f(r.areaW, 1) + " m² (netto " + f(r.area, 2) + " m²), ok. " + r.pieces + " szt., " + f(Math.ceil(r.pallets * 10) / 10, 1) + " palety");
+    L.push("Wymiar kostki: " + f(r.KX, 2) + " × " + f(r.KY, 2) + " m");
+    L.push("Obrzeża 1 m: " + Math.ceil(r.perim) + " szt.");
+    L.push("Kruszywo 0–31,5: " + f(r.baseLoose, 2) + " m³");
+    L.push("Piasek: " + f(r.bedLoose, 2) + " m³, cement: ~" + Math.ceil(r.cementKg / 25) + " worków");
+    L.push("");
+    L.push("Słupki " + fcm(p.s) + "×" + fcm(p.s) + " cm: " + r.pts.length + " szt. (front " + r.nx + "×" + fcm(r.dx) + " cm, bok " + r.ny + "×" + fcm(r.dy) + " cm w osiach)");
+    L.push("Kotwy: " + r.pts.length + " szt., beton na stopy: " + f(r.footV, 2) + " m³ (~" + r.footBags + " worków 25 kg)");
+    L.push("");
+    L.push("Pozycje słupków od lewego przedniego rogu kostki (X wzdłuż frontu / Y w głąb, cm):");
+    r.pts.forEach(function (q) { L.push(q.id + ": " + fcm(q.kx) + " / " + fcm(q.ky) + "  (" + q.wall + ")"); });
+    return L.join("\n");
+  }
+
+  el("copy").addEventListener("click", function () {
+    var t = shoppingText();
+    var msg = el("copyMsg");
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = t; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+      msg.textContent = ok ? "Skopiowano do schowka." : "Nie udało się skopiować. Zaznacz tabelę ręcznie.";
+    }
+    try {
+      navigator.clipboard.writeText(t).then(function () { msg.textContent = "Skopiowano do schowka."; }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  el("reset").addEventListener("click", function () {
+    IDS.forEach(function (id) { el(id).value = defaults[id]; });
+    CHECKS.forEach(function (id) { el(id).checked = defaults[id]; });
+    el("copyMsg").textContent = "";
+    render();
+  });
+
+  el("form").addEventListener("input", render);
+  el("form").addEventListener("change", render);
+  el("form").addEventListener("submit", function (e) { e.preventDefault(); });
+
+  load();
+  render();
+})();
+</script>
+</body>
+</html>
