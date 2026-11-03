@@ -2241,6 +2241,33 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (mq.addEventListener) mq.addEventListener("change", function () { if (V3.r) build3d(V3.r); });
   }
 
+  // ---------- zapis pliku ----------
+  // Na zwykłej stronie: pobieranie przez link. W podglądzie Claude: uprawnienie „downloads” (przeglądarka pyta o zgodę).
+  function inFrameView() { try { return window.top !== window.self; } catch (e) { return true; } }
+  function saveFile(filename, data) {
+    if (!inFrameView()) {
+      var blob = data instanceof Blob ? data : new Blob([data], { type: "application/octet-stream" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      return Promise.resolve("saved");
+    }
+    var use = window.claude && window.claude.use;
+    if (!use) return Promise.resolve("unavailable");
+    return Promise.resolve(window.claude.use("downloads")).then(function (dl) {
+      if (!dl) return "unavailable";
+      return dl.save({ filename: filename, data: data }).then(function () { return "saved"; }, function (e) {
+        return e && e.code === "declined" ? "declined" : "unavailable";
+      });
+    }, function () { return "unavailable"; });
+  }
+  var SAVE_MSG = {
+    saved: "Plik zapisany.",
+    declined: "Zapis anulowany.",
+    unavailable: "Tutaj nie da się zapisać pliku. Otwórz stronę na GitHub Pages albo użyj „Kopiuj link”."
+  };
+
   // ---------- eksport do PDF ----------
   var LIBS = [
     "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
@@ -2282,9 +2309,6 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var r = compute();
     var msg = el("copyMsg"), btn = el("pdf");
     if (r.bad) { msg.textContent = "Popraw wymiary, zanim zapiszesz PDF."; return; }
-    var framed = false;
-    try { framed = window.top !== window.self; } catch (e) { framed = true; }
-    if (framed) { msg.textContent = "W podglądzie pobieranie plików jest zablokowane. PDF pobierzesz ze strony: mrpankrecik.github.io/projektowanie-altanek"; return; }
     msg.textContent = "Przygotowuję PDF…"; btn.disabled = true;
     var root = document.documentElement, prevTheme = root.getAttribute("data-theme");
     var head = null;
@@ -2348,8 +2372,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         pdf.text("Kalkulator altanki  -  strona " + pg + " / " + n, PW / 2, PH - 5, { align: "center" });
       }
       var pn = projName().replace(/[^\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]+/g, "").trim().replace(/\s+/g, "-");
-      pdf.save((pn ? pn + "-" : "altana-") + Math.round(r.p.A * 100) + "x" + Math.round(r.p.B * 100) + "cm.pdf");
-      msg.textContent = "PDF zapisany w pobranych plikach.";
+      var res = await saveFile((pn ? pn + "-" : "altana-") + Math.round(r.p.A * 100) + "x" + Math.round(r.p.B * 100) + "cm.pdf", pdf.output("blob"));
+      msg.textContent = res === "saved" ? "PDF zapisany w pobranych plikach." : SAVE_MSG[res];
     } catch (e) {
       msg.textContent = "Nie udało się utworzyć PDF. Sprawdź połączenie z internetem i spróbuj jeszcze raz.";
     } finally {
@@ -2456,15 +2480,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     copyText(projLink(), "Skopiowano link do projektu. Wyślij go komuś albo otwórz na innym urządzeniu.");
   });
   el("pFile").addEventListener("click", function () {
-    if (inFrame()) { pMsg("W podglądzie pobieranie plików jest zablokowane. Użyj „Kopiuj link” albo otwórz stronę na GitHub Pages."); return; }
     var n = projName() || "altana";
     var data = JSON.stringify({ app: "kalkulator-altanki", name: projName(), saved: new Date().toISOString(), state: projState() }, null, 2);
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
-    a.download = n.replace(/[^\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]+/g, "").trim().replace(/\s+/g, "-") + ".json";
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-    pMsg("Zapisano plik projektu w pobranych plikach.");
+    saveFile(n.replace(/[^\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]+/g, "").trim().replace(/\s+/g, "-") + ".json", data).then(function (res) {
+      pMsg(res === "saved" ? "Zapisano plik projektu w pobranych plikach." : SAVE_MSG[res]);
+    });
   });
   el("pUpload").addEventListener("click", function () { el("pFileIn").click(); });
   el("pFileIn").addEventListener("change", function () {
