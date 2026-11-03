@@ -19,6 +19,8 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
   (na wspornikach albo na dodatkowych słupkach): krokwie, krokwie narożne i kulawe, jętki, oczepy,
   płatew kalenicowa, długości słupków, powierzchnia połaci, m³ drewna i zamówienie w długościach handlowych.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
+- **Wizualizacja 3D** – obracany model z kostką, obrzeżem, słupkami, drzwiami, drewutnią, więźbą
+  i pokryciem dachu (pokrycie można schować, żeby zobaczyć krokwie).
 - **Rzut z góry** z wymiarami, instrukcja wytyczenia w terenie, lista zakupów do schowka i **eksport do PDF**.
 
 ## Uruchomienie

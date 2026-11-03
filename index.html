@@ -137,6 +137,10 @@ h2 .tag { font-family: var(--font-body); text-transform: none; letter-spacing: 0
 
 .plan-box { overflow-x: auto; }
 .plan-box svg { display: block; width: 100%; height: auto; min-width: 480px; }
+.v3bar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; }
+.v3box { position: relative; width: 100%; aspect-ratio: 4 / 3; max-height: 620px; border-radius: 4px; overflow: hidden; background: var(--bg); touch-action: none; }
+.v3box canvas { display: block; width: 100% !important; height: 100% !important; }
+.v3msg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--muted); font-size: 14px; text-align: center; padding: 16px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sw { width: 14px; height: 14px; display: inline-block; border: 1px solid var(--line); }
@@ -477,6 +481,20 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         </div>
       </section>
 
+      <section class="card" id="v3card">
+        <h2>Wizualizacja 3D <span class="tag">przeciągnij, żeby obrócić; kółko lub dwa palce przybliżają</span></h2>
+        <div class="v3bar">
+          <div class="btns">
+            <button type="button" data-view="iso">3D</button>
+            <button type="button" data-view="front">Przód</button>
+            <button type="button" data-view="side">Bok</button>
+            <button type="button" data-view="top">Z góry</button>
+          </div>
+          <label class="check"><input type="checkbox" id="v3roof" checked> Pokrycie dachu</label>
+        </div>
+        <div class="v3box" id="v3box"><p class="v3msg" id="v3msg">Wczytuję widok 3D…</p></div>
+      </section>
+
       <div class="two">
         <section class="card">
           <h2>Kostka i podbudowa</h2>
@@ -721,6 +739,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var lowY = p.sDir === "back" ? p.B - p.s / 2 : -Ep + p.s / 2;
         R.rise = (p.B + Ep - p.s) * t;
         heightAt = function (q) { return p.ph + Math.abs(q.ay - lowY) * t; };
+        R.d = p.sDir === "back" ? function (x, y) { return lowY - y; } : function (x, y) { return y - lowY; };
+        R.planes = [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]];
       } else {
         var ys = along(y0, y1);
         ys.forEach(function (y) { R.rafters.push([x0, y, x1, y]); });
@@ -731,6 +751,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var lowX = p.sDir === "left" ? p.s / 2 : p.A - p.s / 2;
         R.rise = (p.A - p.s) * t;
         heightAt = function (q) { return p.ph + Math.abs(q.ax - lowX) * t; };
+        R.d = p.sDir === "left" ? function (x) { return x - lowX; } : function (x) { return lowX - x; };
+        R.planes = [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]];
       }
       R.arrow = p.sDir;
     } else if (p.roof === "gable") {
@@ -750,6 +772,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         pairs = xs2.length; half = yr - sy0;
         R.ridgeLen = R.RW;
         R.rise = (half - p.s / 2) * t;
+        var hrP = half - p.s / 2;
+        R.d = function (x, y) { return hrP - Math.abs(y - yr); };
+        R.planes = [[[x0, y0], [x1, y0], [x1, yr], [x0, yr]], [[x0, yr], [x1, yr], [x1, y1], [x0, y1]]];
       } else {
         var xr = p.A / 2;
         var ys2 = along(y0, y1);
@@ -764,6 +789,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         pairs = ys2.length; half = p.A / 2;
         R.ridgeLen = R.RD;
         R.rise = (half - p.s / 2) * t;
+        var hrQ = half - p.s / 2;
+        R.d = function (x) { return hrQ - Math.abs(x - xr); };
+        R.planes = [[[x0, y0], [xr, y0], [xr, y1], [x0, y1]], [[xr, y0], [x1, y0], [x1, y1], [xr, y1]]];
       }
       if (p.ridge) {
         add("Płatew kalenicowa", "b", R.ridgeLen, 1);
@@ -808,7 +836,16 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       add("Oczep boczny", "b", p.B + Ep, 2);
       free = Math.min(p.B + Ep, p.A) / 2;
       R.rise = (free - p.s / 2) * t;
+      R.d = function (x, y) { return Math.min(x - x0, x1 - x, y - y0, y1 - y) - o + p.s / 2; };
+      var c0 = [x0, y0], c1 = [x1, y0], c2 = [x1, y1], c3 = [x0, y1], e0 = [cx0, cy0], e1 = [cx1, cy1];
+      R.planes = ridgeX
+        ? [[c0, c1, e1, e0], [c1, c2, e1], [c2, c3, e0, e1], [c3, c0, e0]]
+        : [[c0, c1, e0], [c1, c2, e1, e0], [c2, c3, e1], [c3, c0, e0, e1]];
     }
+
+    R.base = p.ph + p.bh;   // spód krokwi nad linią oczepu
+    R.z = function (x, y) { return R.base + t * R.d(x, y); };
+    R.heightAt = heightAt;
 
     // słupki: wysokość od kotwy do spodu oczepu
     pts.forEach(function (q) { add("Słupki", "s", heightAt(q), 1); });
@@ -1222,6 +1259,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("steps").innerHTML = steps.map(function (t) { return "<li>" + t + "</li>"; }).join("");
 
     el("plan").innerHTML = drawPlan(r);
+    schedule3d(r);
   }
 
 
@@ -1514,6 +1552,255 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     } catch (e) { fallback(); }
   });
 
+
+  // ---------- wizualizacja 3D (three.js) ----------
+  var THREE_URLS = [
+    "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js",
+    "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
+  ];
+  var V3 = { ready: false, loading: false, failed: false, r: null, timer: null };
+  function schedule3d(r) {
+    V3.r = r;
+    clearTimeout(V3.timer);
+    V3.timer = setTimeout(function () {
+      if (V3.ready) build3d(V3.r);
+      else if (!V3.loading && !V3.failed) init3d();
+    }, 120);
+  }
+  function init3d() {
+    V3.loading = true;
+    loadScript(THREE_URLS[0]).then(function () { return loadScript(THREE_URLS[1]); }).then(function () {
+      var box = el("v3box");
+      var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      box.appendChild(renderer.domElement);
+      var scene = new THREE.Scene();
+      var camera = new THREE.PerspectiveCamera(40, 4 / 3, 0.1, 200);
+      var controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.maxPolarAngle = Math.PI / 2 - 0.03;
+      controls.minDistance = 2; controls.maxDistance = 40;
+      controls.addEventListener("change", draw3d);
+      scene.add(new THREE.HemisphereLight(0xf2f6ff, 0x5d6b4a, 0.6));
+      var sun = new THREE.DirectionalLight(0xffffff, 0.85);
+      sun.position.set(6, 10, 7);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      var sc = sun.shadow.camera; sc.left = -9; sc.right = 9; sc.top = 9; sc.bottom = -9; sc.near = 1; sc.far = 40;
+      sun.shadow.bias = -0.0005;
+      scene.add(sun);
+      V3.renderer = renderer; V3.scene = scene; V3.camera = camera; V3.controls = controls;
+      V3.ready = true; V3.loading = false;
+      el("v3msg").hidden = true;
+      if (window.ResizeObserver) new ResizeObserver(resize3d).observe(box);
+      build3d(V3.r);
+      setView("iso");
+    }).catch(function () {
+      V3.loading = false; V3.failed = true;
+      el("v3msg").textContent = "Nie udało się wczytać widoku 3D. Sprawdź połączenie z internetem i odśwież stronę.";
+    });
+  }
+  function resize3d() {
+    if (!V3.ready) return;
+    var box = el("v3box"), w = box.clientWidth, h = box.clientHeight;
+    if (!w || !h) return;
+    V3.renderer.setSize(w, h, false);
+    V3.camera.aspect = w / h;
+    V3.camera.updateProjectionMatrix();
+    draw3d();
+  }
+  function draw3d() { if (V3.ready) V3.renderer.render(V3.scene, V3.camera); }
+
+  function canvasTex(w, h, paint, rx, ry) {
+    var cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    paint(cv.getContext("2d"), w, h);
+    var tx = new THREE.CanvasTexture(cv);
+    tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+    tx.repeat.set(rx || 1, ry || 1);
+    tx.anisotropy = 4;
+    return tx;
+  }
+  function tokenColor(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  function build3d(r) {
+    if (!V3.ready || !r || r.bad) return;
+    var p = r.p, R = r.roof, scene = V3.scene;
+    if (V3.group) {
+      scene.remove(V3.group);
+      V3.group.traverse(function (o) {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+      });
+    }
+    var G = new THREE.Group(); V3.group = G; scene.add(G);
+    scene.background = new THREE.Color(tokenColor("--bg", "#e9ece9"));
+    // altana: x → X, wysokość → Y, głębokość y → -Z (front do patrzącego)
+    var cx = p.A / 2, cy = p.B / 2;
+    function V(x, y, z) { return new THREE.Vector3(x - cx, z, cy - y); }
+    function mat(color, extra) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.85, metalness: 0 }, extra || {})); }
+    var mPost = mat(0xb98a55), mBeam = mat(0xc49a63), mRaft = mat(0xd4ad78);
+    function mesh(geo, m, shadow) { var o = new THREE.Mesh(geo, m); o.castShadow = shadow !== false; o.receiveShadow = true; G.add(o); return o; }
+    // belka między dwoma punktami; spód belki na linii a–b
+    function bar(a, b, w, h, m) {
+      var len = a.distanceTo(b); if (len < 0.01) return;
+      var o = mesh(new THREE.BoxGeometry(w, h, len), m);
+      o.position.copy(a).add(b).multiplyScalar(0.5);
+      o.lookAt(b);
+      o.translateY(h / 2);
+      return o;
+    }
+    function boxAt(x0, y0, x1, y1, z0, z1, m, shadow) {
+      var o = mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), z1 - z0, Math.abs(y1 - y0)), m, shadow);
+      o.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2));
+      return o;
+    }
+
+    // trawa
+    var grass = mesh(new THREE.PlaneGeometry(60, 60), mat(0x6f8f48), false);
+    grass.rotation.x = -Math.PI / 2; grass.position.y = -0.065;
+
+    // kostka (wzór jodełki/cegiełki)
+    var kx0 = -r.ox, ky0 = -r.oy, kx1 = r.KX - r.ox, ky1 = r.KY - r.oy;
+    var pave = canvasTex(256, 256, function (g, w, h) {
+      g.fillStyle = "#9aa09c"; g.fillRect(0, 0, w, h);
+      var bw = w / 2, bh = h / 4;
+      for (var j = 0; j < 4; j++) for (var i = -1; i < 3; i++) {
+        var x = i * bw + (j % 2 ? bw / 2 : 0), y = j * bh;
+        var tone = 150 + ((i * 7 + j * 13) % 5) * 6;
+        g.fillStyle = "rgb(" + tone + "," + (tone + 4) + "," + (tone + 2) + ")";
+        g.fillRect(x + 3, y + 3, bw - 6, bh - 6);
+      }
+    }, (kx1 - kx0) / 0.4, (ky1 - ky0) / 0.4);
+    boxAt(kx0, ky0, kx1, ky1, -0.06, 0, mat(0xffffff, { map: pave, roughness: 0.95 }), false);
+
+    // obrzeże
+    var mCurb = mat(0x6d726f), t = p.oT, lx = p.oL ? t : 0, rx = p.oR ? t : 0;
+    if (p.oF) boxAt(kx0 - lx, ky0 - t, kx1 + rx, ky0, -0.08, 0.03, mCurb, false);
+    if (p.oB) boxAt(kx0 - lx, ky1, kx1 + rx, ky1 + t, -0.08, 0.03, mCurb, false);
+    if (p.oL) boxAt(kx0 - t, ky0, kx0, ky1, -0.08, 0.03, mCurb, false);
+    if (p.oR) boxAt(kx1, ky0, kx1 + t, ky1, -0.08, 0.03, mCurb, false);
+
+    // słupki
+    var hAt = R ? R.heightAt : function () { return p.ph; };
+    r.pts.forEach(function (q) {
+      var h = q.wall === "drewutnia" ? p.wH : hAt(q);
+      boxAt(q.ax - p.s / 2, q.ay - p.s / 2, q.ax + p.s / 2, q.ay + p.s / 2, 0, h, mPost);
+    });
+
+    // oczepy po obwodzie i na linii daszka
+    function beamLine(x1, y1, x2, y2) {
+      var h1 = hAt({ ax: x1, ay: y1 }), h2 = hAt({ ax: x2, ay: y2 });
+      bar(V(x1, y1, h1), V(x2, y2, h2), p.bb, p.bh, mBeam);
+    }
+    var s2 = p.s / 2;
+    beamLine(0, s2, p.A, s2);
+    beamLine(0, p.B - s2, p.A, p.B - s2);
+    beamLine(s2, -r.Ep, s2, p.B);
+    beamLine(p.A - s2, -r.Ep, p.A - s2, p.B);
+    if (r.extLine) beamLine(0, r.extLine.y, p.A, r.extLine.y);
+
+    // drzwi
+    var dw = p.door ? r.walls[p.dWall] : null;
+    if (dw && dw.door) {
+      var a = wallPoint(p, p.dWall, dw.door.d0), b = wallPoint(p, p.dWall, dw.door.d0 + dw.door.w);
+      var dh = Math.min(2.0, p.ph - 0.05), th = 0.04;
+      var dx = (b.x - a.x), dy = (b.y - a.y);
+      boxAt(Math.min(a.x, b.x) - (dx ? 0 : th / 2), Math.min(a.y, b.y) - (dy ? 0 : th / 2), Math.max(a.x, b.x) + (dx ? 0 : th / 2), Math.max(a.y, b.y) + (dy ? 0 : th / 2), 0.02, dh, mat(0x7a5434));
+    }
+
+    // drewutnia: kratownica, górna belka i ułożone drewno
+    if (r.wood) {
+      var w = r.wood;
+      var lat = canvasTex(128, 128, function (g, W, H) {
+        g.clearRect(0, 0, W, H);
+        g.strokeStyle = "#5f8a3a"; g.lineWidth = 9;
+        g.beginPath(); g.moveTo(-10, -10); g.lineTo(W + 10, H + 10); g.moveTo(W + 10, -10); g.lineTo(-10, H + 10); g.stroke();
+      }, 1, 1);
+      function face(u1, t1, u2, t2) {
+        var A1 = pt(p, w.wall, u1, t1), A2 = pt(p, w.wall, u2, t2);
+        var len = Math.hypot(A2.x - A1.x, A2.y - A1.y); if (len < 0.05) return;
+        var tex = lat.clone(); tex.needsUpdate = true; tex.repeat.set(len / 0.3, p.wH / 0.3);
+        var o = mesh(new THREE.PlaneGeometry(len, p.wH), new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.9 }));
+        var m1 = V((A1.x + A2.x) / 2, (A1.y + A2.y) / 2, p.wH / 2);
+        o.position.copy(m1);
+        o.rotation.y = -Math.atan2(-(A2.y - A1.y), (A2.x - A1.x));
+      }
+      var Dd = w.mode === "out" ? -w.D : w.D;
+      face(w.u1, Dd, w.u2, Dd);
+      if (w.mode === "in") face(w.u1, 0, w.u2, 0);
+      if (w.mode === "out" || !p.wFull) { face(w.u1, 0, w.u1, Dd); face(w.u2, 0, w.u2, Dd); }
+      if (r.woodLine) {
+        var f1 = pt(p, w.wall, r.woodLine.pos[0].u, w.t), f2 = pt(p, w.wall, r.woodLine.pos[r.woodLine.pos.length - 1].u, w.t);
+        bar(V(f1.x, f1.y, p.wH), V(f2.x, f2.y, p.wH), p.bb * 0.7, p.bh * 0.7, mBeam);
+      }
+      var logs = canvasTex(256, 256, function (g, W, H) {
+        g.fillStyle = "#6b4a2b"; g.fillRect(0, 0, W, H);
+        for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
+          var x = W / 8 + i * W / 4 + (j % 2 ? W / 16 : 0), y = H / 8 + j * H / 4, rr = W / 9;
+          g.fillStyle = "#c9a26c"; g.beginPath(); g.arc(x, y, rr, 0, 7); g.fill();
+          g.strokeStyle = "#9c7646"; g.lineWidth = 2; g.beginPath(); g.arc(x, y, rr * 0.55, 0, 7); g.stroke();
+        }
+      }, 1, 1);
+      var i1 = pt(p, w.wall, w.u1 + p.s, w.mode === "out" ? -0.02 : p.s), i2 = pt(p, w.wall, w.u2 - p.s, w.mode === "out" ? -(w.D - p.s) : w.D - p.s);
+      var lh = p.wH * 0.75;
+      logs.repeat.set(Math.max(1, Math.abs(i2.x - i1.x) / 0.6), Math.max(1, lh / 0.6));
+      boxAt(Math.min(i1.x, i2.x), Math.min(i1.y, i2.y), Math.max(i1.x, i2.x), Math.max(i1.y, i2.y), 0, lh, mat(0xffffff, { map: logs }));
+    }
+
+    // więźba i pokrycie
+    if (R) {
+      var kh = p.kh;
+      function Z(x, y) { return R.z(x, y); }
+      R.rafters.forEach(function (a) { bar(V(a[0], a[1], Z(a[0], a[1])), V(a[2], a[3], Z(a[2], a[3])), p.kb, kh, mRaft); });
+      R.hips.forEach(function (a) { bar(V(a[0], a[1], Z(a[0], a[1])), V(a[2], a[3], Z(a[2], a[3])), p.bb, p.bh, mBeam); });
+      if (R.ridge) {
+        var g = R.ridge, zr = Z(g[0], g[1]);
+        if (R.type === "gable" && !p.ridge) bar(V(g[0], g[1], zr), V(g[2], g[3], zr), p.kb, kh, mRaft);
+        else bar(V(g[0], g[1], zr - p.bh), V(g[2], g[3], zr - p.bh), p.bb, p.bh, mBeam);
+      }
+      if (el("v3roof").checked) {
+        var lift = kh / R.c + 0.025, pos = [];
+        R.planes.forEach(function (poly) {
+          for (var i = 1; i < poly.length - 1; i++) [poly[0], poly[i], poly[i + 1]].forEach(function (q) {
+            var v = V(q[0], q[1], Z(q[0], q[1]) + lift); pos.push(v.x, v.y, v.z);
+          });
+        });
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.computeVertexNormals();
+        mesh(geo, mat(0x46505a, { side: THREE.DoubleSide, roughness: 0.6, metalness: 0.2, emissive: 0x2a3138 }));
+      }
+    }
+    var top = R ? R.base + R.rise + 0.4 : p.ph + 0.4;
+    V3.size = Math.max(r.KX, r.KY, R ? Math.max(R.RW, R.RD) : 0, top);
+    V3.top = top;
+    if (V3.view) setView(V3.view, true); else draw3d();
+  }
+  function setView(v, keep) {
+    if (!V3.ready) return;
+    V3.view = v;
+    var c = V3.camera, d = V3.size * 1.9 + 2, ty = V3.top * 0.45;
+    if (!keep) {
+      if (v === "front") c.position.set(0, ty + 0.3, d);
+      else if (v === "side") c.position.set(d, ty + 0.3, 0);
+      else if (v === "top") c.position.set(0, d * 1.1, 0.01);
+      else c.position.set(d * 0.62, d * 0.48, d * 0.78);
+      V3.controls.target.set(0, ty, 0);
+    }
+    V3.controls.update();
+    resize3d();
+  }
+  document.querySelectorAll("[data-view]").forEach(function (b) { b.addEventListener("click", function () { setView(b.getAttribute("data-view")); }); });
+  el("v3roof").addEventListener("change", function () { if (V3.r) build3d(V3.r); });
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", function () { if (V3.r) build3d(V3.r); });
+  }
+
   // ---------- eksport do PDF ----------
   var LIBS = [
     "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
@@ -1577,7 +1864,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 
       var parts = [head, el("stats")];
       if (el("warn").innerHTML) parts.push(el("warn"));
-      parts.push(el("plan").closest(".card"), document.querySelector(".two"));
+      parts.push(el("plan").closest(".card"));
+      if (V3.ready) { build3d(r); parts.push(el("v3card")); }
+      parts.push(document.querySelector(".two"));
       if (!el("roofCard").hidden) parts.push(el("roofCard"));
       if (!el("woodCard").hidden) parts.push(el("woodCard"));
       parts.push(el("tbl").closest(".card"), el("steps").closest(".card"));
