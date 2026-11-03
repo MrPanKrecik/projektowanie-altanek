@@ -184,6 +184,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 .svg-zero { fill: var(--ink); }
 .svg-curb { fill: var(--ink); fill-opacity: 0.75; }
 .svg-roof { fill: none; stroke: var(--roof); stroke-width: 1.6; stroke-dasharray: 10 4 2 4; }
+.svg-tie { stroke: var(--timber); stroke-width: 4; stroke-opacity: 0.45; }
 .svg-rafter { stroke: var(--roof); stroke-width: 1; stroke-opacity: 0.45; }
 .svg-ridge { stroke: var(--roof); stroke-width: 2.2; }
 .svg-rooftxt { fill: var(--roof); font-family: var(--font-mono); font-size: 12px; font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
@@ -304,6 +305,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <span class="pair"><span class="unit" data-u="cm"><input type="number" id="lb" step="1" min="2" value="4" aria-label="Szerokość łaty"></span><span class="unit" data-u="cm"><input type="number" id="lh" step="1" min="2" value="5" aria-label="Wysokość łaty"></span></span>
           </label>
         </div>
+        <label class="check" id="tiesWrap"><input type="checkbox" id="ties" checked> Belki poprzeczne między każdą parą słupków</label>
         <label class="check" id="jetkiWrap"><input type="checkbox" id="jetki"> Jętki spinające pary krokwi</label>
         <div class="row" id="stockWrap">
           <label>Deska czołowa szer. × wys.
@@ -487,6 +489,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           <span><i class="sw" style="border:0;border-top:2px solid var(--accent);border-right:1px dashed var(--accent);background:transparent;border-radius:0 100% 0 0"></i>drzwi i słupki przy drzwiach</span>
           <span><i class="sw" style="background:var(--wood-fill);border:1.5px solid var(--wood)"></i>drewutnia z kratownicą</span>
           <span><i class="sw" style="border:1.6px dashed var(--roof);background:transparent"></i>obrys dachu, kalenica i krokwie</span>
+          <span><i class="sw" style="border:0;border-top:4px solid var(--timber);opacity:.6;height:4px;background:transparent"></i>belki poprzeczne</span>
         </div>
       </section>
 
@@ -572,8 +575,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
     "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
-  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki"];
-  var KEY = "kalkulator-altanki-v6";
+  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties"];
+  var KEY = "kalkulator-altanki-v7";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
   IDS.forEach(function (id) { defaults[id] = el(id).value; });
@@ -854,6 +857,29 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       if (Ep > 0) beam("Belka nad frontem altany", 0, yW, p.A, yW, true);
     }
 
+    // belki poprzeczne: od każdego słupka ściany okapowej na drugą stronę, na wysokości oczepu
+    R.ties = [];
+    if (p.ties) {
+      var alongX = (p.roof === "gable" && p.rDir === "par") || (p.roof === "mono" && (p.sDir === "back" || p.sDir === "front")) ||
+        (p.roof === "hip" && (yB - yF) <= (xR - xL));
+      var lines = alongX ? [yF, yB].concat(Ep > 0 ? [yW] : []) : [xL, xR];
+      var ends = alongX ? [xL, xR] : [yF, yB].concat(Ep > 0 ? [yW] : []);   // tam już są belki szczytowe
+      var us = [];
+      pts.forEach(function (q) {
+        if (q.wall === "drewutnia") return;
+        if (!lines.some(function (v) { return Math.abs((alongX ? q.ay : q.ax) - v) < 1e-6; })) return;
+        var u = alongX ? q.ax : q.ay;
+        if (ends.some(function (v) { return Math.abs(u - v) < p.s; })) return;
+        if (!us.some(function (v) { return Math.abs(v - u) < p.s; })) us.push(u);
+      });
+      us.sort(function (a, b) { return a - b; }).forEach(function (u) {
+        if (alongX) beam("Belka poprzeczna", u, -Ep, u, p.B, true);
+        else beam("Belka poprzeczna", 0, u, p.A, u, true);
+        var bm = R.beams[R.beams.length - 1];
+        R.ties.push([bm.a[0], bm.a[1], bm.b[0], bm.b[1]]);
+      });
+    }
+
     // kalenica: płatew na słupkach albo deska kalenicowa z jętkami
     var halfRun = 0;
     if (p.roof === "gable") halfRun = p.rDir === "par" ? (yB - yF) / 2 : (xR - xL) / 2;
@@ -968,7 +994,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       oF: el("oF").checked, oB: el("oB").checked, oL: el("oL").checked, oR: el("oR").checked,
       roof: el("roof").value, ang: num("ang"), rDir: el("rDir").value, sDir: el("sDir").value,
       ov: num("ov") / 100, ext: num("ext") / 100, extSup: el("extSup").value, rs: num("rs") / 100, ph: num("ph") / 100,
-      kb: num("kb") / 100, kh: num("kh") / 100, bb: num("bb") / 100, bh: num("bh") / 100, db: num("db") / 100, dh: num("dh") / 100, cut: num("cut") / 100, ri: num("ri") / 100, lb: num("lb") / 100, lh: num("lh") / 100, jetki: el("jetki").checked,
+      kb: num("kb") / 100, kh: num("kh") / 100, bb: num("bb") / 100, bh: num("bh") / 100, db: num("db") / 100, dh: num("dh") / 100, cut: num("cut") / 100, ri: num("ri") / 100, lb: num("lb") / 100, lh: num("lh") / 100, jetki: el("jetki").checked, ties: el("ties").checked,
       oLen: parseFloat(el("oLen").value) / 100, oT: num("oT") / 100, oLaw: el("oLaw").checked, oLW: num("oLW") / 100, oLH: num("oLH") / 100
     };
     var warn = [];
@@ -1196,6 +1222,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("rDirWrap").hidden = rf !== "gable";
     el("sDirWrap").hidden = rf !== "mono";
     el("ridgeWrap").hidden = rf === "mono" || rf === "hip";
+    el("tiesWrap").hidden = !rOn;
     el("jetkiWrap").hidden = rf !== "gable" || el("ridge").checked;
     el("ridgeTxt").textContent = rf === "none" ? "Słupek na środku krótszych ścian (pod kalenicę)" : "Płatew i słupki pod kalenicą (zwykle niepotrzebne)";
     var wOn = el("wood").checked;
@@ -1427,6 +1454,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     // dach: krokwie, obrys, kalenica, krokwie narożne
     if (R) {
       function ln(a, cls) { return '<line x1="' + GX(a[0]).toFixed(1) + '" y1="' + GY(a[1]).toFixed(1) + '" x2="' + GX(a[2]).toFixed(1) + '" y2="' + GY(a[3]).toFixed(1) + '" class="' + cls + '"/>'; }
+      (R.ties || []).forEach(function (a) { o.push(ln(a, "svg-tie")); });
       R.rafters.forEach(function (a) { o.push(ln(a, "svg-rafter")); });
       o.push(rectPts({ x: R.x0, y: R.y0 }, { x: R.x1, y: R.y1 }, "svg-roof"));
       if (R.ridge) o.push(ln(R.ridge, "svg-ridge"));
