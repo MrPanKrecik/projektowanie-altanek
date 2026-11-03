@@ -22,6 +22,8 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
   (na mijankę), zakup na wymiar (0,7–5 m) w pełnych paczkach albo z długości dostępnych w składzie, lista zakupu
   i plan cięcia z wykorzystaniem ścinków.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
+- **Projekty** – zapis pod nazwą w przeglądarce, link do projektu (do wysłania komuś albo na inne
+  urządzenie), plik `.json` do pobrania i wczytania.
 - **Wizualizacja 3D** – obracany model z kostką, obrzeżem, słupkami, drzwiami, drewutnią, więźbą
   i pokryciem dachu (pokrycie można schować, żeby zobaczyć krokwie).
 - **Rzut z góry** z wymiarami, instrukcja wytyczenia w terenie, lista zakupów do schowka i **eksport do PDF**.

@@ -102,6 +102,8 @@ select { font-family: var(--font-body); padding-right: 10px; }
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .pair input[type="number"] { padding-right: 28px; }
+.proj-load { display: grid; gap: 8px; }
+.paste { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
 .checks4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .hint .mono { font-family: var(--font-mono); }
 .hint { font-size: 12.5px; color: var(--muted); margin: 0; }
@@ -224,6 +226,35 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 
   <div class="layout">
     <form class="panel sticky" id="form" autocomplete="off">
+      <fieldset>
+        <legend><i style="background:var(--ink)"></i>Projekt</legend>
+        <label>Nazwa projektu
+          <input type="text" id="pName" value="" placeholder="np. Altana u Kowalskich" autocomplete="off">
+        </label>
+        <div class="btns">
+          <button type="button" class="primary" id="pSave">Zapisz</button>
+          <button type="button" id="pLink">Kopiuj link</button>
+          <button type="button" id="pFile">Pobierz plik</button>
+        </div>
+        <div class="proj-load" id="pListBox">
+          <label>Zapisane projekty
+            <select id="pList"></select>
+          </label>
+          <div class="btns">
+            <button type="button" id="pOpen">Wczytaj</button>
+            <button type="button" id="pDel">Usuń</button>
+          </div>
+        </div>
+        <label>Wklej link albo kod projektu
+          <span class="paste"><input type="text" id="pCode" placeholder="https://…#p=… albo sam kod" autocomplete="off" spellcheck="false"><button type="button" id="pImport">Wczytaj</button></span>
+        </label>
+        <div class="btns">
+          <button type="button" id="pUpload">Wczytaj plik</button>
+          <input type="file" id="pFileIn" accept=".json,application/json" hidden>
+        </div>
+        <p class="hint" id="pMsg" aria-live="polite">Projekty zapisują się w tej przeglądarce. Żeby przenieść projekt na inne urządzenie albo wysłać go komuś, użyj linku albo pliku.</p>
+      </fieldset>
+
       <fieldset>
         <legend><i style="background:var(--timber)"></i>Altana</legend>
         <div class="row">
@@ -623,7 +654,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 <script>
 (function () {
   "use strict";
-  var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
+  var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
     "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
   var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag"];
@@ -1890,7 +1921,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (r.bad) return "";
     var p = r.p, wood = r.wood;
     var L = [];
-    L.push("ALTANA " + f(p.A, 2) + " × " + f(p.B, 2) + " m");
+    L.push((projName() ? projName() + " – " : "") + "ALTANA " + f(p.A, 2) + " × " + f(p.B, 2) + " m");
     L.push("");
     L.push("Kostka (" + p.fmtName + ", " + fcm(p.thick) + " cm): " + f(r.areaW, 1) + " m² (netto " + f(r.area, 2) + " m²), ok. " + r.pieces + " szt., " + f(Math.ceil(r.pallets * 10) / 10, 1) + " palety");
     L.push("Wymiar kostki: " + f(r.KX, 2) + " × " + f(r.KY, 2) + " m");
@@ -2265,7 +2296,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 
       head = document.createElement("div");
       head.className = "pdf-head";
-      head.innerHTML = '<div class="t">Altana <span>' + f(r.p.A, 2) + " × " + f(r.p.B, 2) + ' m</span></div>' +
+      head.innerHTML = (projName() ? '<div class="m" style="font-weight:600;color:var(--ink);font-size:16px">' + projName().replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</div>' : '') +
+        '<div class="t">Altana <span>' + f(r.p.A, 2) + " × " + f(r.p.B, 2) + ' m</span></div>' +
         '<div class="m">' + paramSummary(r) + "</div>" +
         '<div class="m">Wygenerowano ' + new Date().toLocaleDateString("pl-PL") + " w Kalkulatorze altanki</div>";
       var main = document.querySelector(".main");
@@ -2315,7 +2347,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         pdf.setFontSize(8); pdf.setTextColor(120);
         pdf.text("Kalkulator altanki  -  strona " + pg + " / " + n, PW / 2, PH - 5, { align: "center" });
       }
-      pdf.save("altana-" + Math.round(r.p.A * 100) + "x" + Math.round(r.p.B * 100) + "cm.pdf");
+      var pn = projName().replace(/[^\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]+/g, "").trim().replace(/\s+/g, "-");
+      pdf.save((pn ? pn + "-" : "altana-") + Math.round(r.p.A * 100) + "x" + Math.round(r.p.B * 100) + "cm.pdf");
       msg.textContent = "PDF zapisany w pobranych plikach.";
     } catch (e) {
       msg.textContent = "Nie udało się utworzyć PDF. Sprawdź połączenie z internetem i spróbuj jeszcze raz.";
@@ -2327,6 +2360,139 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     }
   }
   el("pdf").addEventListener("click", exportPdf);
+
+
+  // ---------- projekty: zapis, link, plik ----------
+  var PKEY = "altanki-projekty";
+  var PAGES_URL = "https://mrpankrecik.github.io/projektowanie-altanek/";
+  function projState() {
+    // tylko pola różne od domyślnych, żeby link był krótki
+    var d = {};
+    IDS.forEach(function (id) { if (el(id).value !== defaults[id]) d[id] = el(id).value; });
+    CHECKS.forEach(function (id) { if (el(id).checked !== defaults[id]) d[id] = el(id).checked; });
+    return { v: 1, d: d };
+  }
+  function applyState(st) {
+    if (!st || typeof st.d !== "object") throw new Error("zły format");
+    IDS.forEach(function (id) { el(id).value = defaults[id]; });
+    CHECKS.forEach(function (id) { el(id).checked = defaults[id]; });
+    Object.keys(st.d).forEach(function (id) {
+      if (IDS.indexOf(id) >= 0) el(id).value = st.d[id];
+      else if (CHECKS.indexOf(id) >= 0) el(id).checked = !!st.d[id];
+    });
+    render();
+  }
+  function b64enc(str) {
+    var bytes = new TextEncoder().encode(str), bin = "";
+    bytes.forEach(function (b) { bin += String.fromCharCode(b); });
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64dec(code) {
+    var b = code.replace(/-/g, "+").replace(/_/g, "/");
+    while (b.length % 4) b += "=";
+    var bin = atob(b), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  function projCode() { return b64enc(JSON.stringify(projState())); }
+  function inFrame() { try { return window.top !== window.self; } catch (e) { return true; } }
+  function projLink() {
+    var base = (!inFrame() && /^https?:/.test(location.protocol)) ? location.href.split("#")[0] : PAGES_URL;
+    return base + "#p=" + projCode();
+  }
+  function readCode(txt) {
+    var t = String(txt).trim(), m = t.match(/#p=([A-Za-z0-9_-]+)/);
+    var code = m ? m[1] : t;
+    if (!/^[A-Za-z0-9_-]+$/.test(code)) throw new Error("zły kod");
+    return JSON.parse(b64dec(code));
+  }
+  function pMsg(t) { el("pMsg").textContent = t; }
+  function projAll() { try { return JSON.parse(localStorage.getItem(PKEY) || "{}") || {}; } catch (e) { return {}; } }
+  function projPut(all) { try { localStorage.setItem(PKEY, JSON.stringify(all)); return true; } catch (e) { return false; } }
+  function projName() { return el("pName").value.trim(); }
+  function projList(select) {
+    var all = projAll(), names = Object.keys(all).sort(function (a, b) { return (all[b].t || 0) - (all[a].t || 0); });
+    el("pListBox").hidden = !names.length;
+    el("pList").innerHTML = names.map(function (n) {
+      var d = all[n].t ? new Date(all[n].t).toLocaleDateString("pl-PL") : "";
+      return '<option value="' + n.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;") + '">' + n.replace(/&/g, "&amp;").replace(/</g, "&lt;") + (d ? " · " + d : "") + "</option>";
+    }).join("");
+    if (select && all[select]) el("pList").value = select;
+  }
+  function copyText(t, okMsg) {
+    function fallback() {
+      el("pCode").value = t; el("pCode").focus(); el("pCode").select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+      pMsg(ok ? okMsg : "Nie udało się skopiować automatycznie. Link jest zaznaczony w polu powyżej, skopiuj go ręcznie.");
+    }
+    try { navigator.clipboard.writeText(t).then(function () { pMsg(okMsg); }, fallback); } catch (e) { fallback(); }
+  }
+  el("pSave").addEventListener("click", function () {
+    var n = projName();
+    if (!n) { pMsg("Wpisz nazwę projektu, np. „Altana u Kowalskich”, i kliknij Zapisz."); el("pName").focus(); return; }
+    var all = projAll(), existed = !!all[n];
+    all[n] = { t: Date.now(), st: projState() };
+    if (!projPut(all)) { pMsg("Przeglądarka nie pozwala zapisywać danych. Użyj linku albo pliku, żeby zachować projekt."); return; }
+    projList(n);
+    pMsg(existed ? "Zaktualizowano projekt „" + n + "”." : "Zapisano projekt „" + n + "”.");
+  });
+  el("pOpen").addEventListener("click", function () {
+    var n = el("pList").value, all = projAll();
+    if (!all[n]) return;
+    applyState(all[n].st); el("pName").value = n; save();
+    pMsg("Wczytano projekt „" + n + "”.");
+  });
+  var delArmed = null;
+  el("pDel").addEventListener("click", function () {
+    var n = el("pList").value;
+    if (!n) return;
+    if (delArmed !== n) { delArmed = n; el("pDel").textContent = "Na pewno usunąć?"; pMsg("Kliknij jeszcze raz, żeby usunąć „" + n + "”."); return; }
+    var all = projAll(); delete all[n]; projPut(all);
+    delArmed = null; el("pDel").textContent = "Usuń"; projList();
+    pMsg("Usunięto projekt „" + n + "”.");
+  });
+  el("pList").addEventListener("change", function () { delArmed = null; el("pDel").textContent = "Usuń"; });
+  el("pLink").addEventListener("click", function () {
+    copyText(projLink(), "Skopiowano link do projektu. Wyślij go komuś albo otwórz na innym urządzeniu.");
+  });
+  el("pFile").addEventListener("click", function () {
+    if (inFrame()) { pMsg("W podglądzie pobieranie plików jest zablokowane. Użyj „Kopiuj link” albo otwórz stronę na GitHub Pages."); return; }
+    var n = projName() || "altana";
+    var data = JSON.stringify({ app: "kalkulator-altanki", name: projName(), saved: new Date().toISOString(), state: projState() }, null, 2);
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+    a.download = n.replace(/[^\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]+/g, "").trim().replace(/\s+/g, "-") + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    pMsg("Zapisano plik projektu w pobranych plikach.");
+  });
+  el("pUpload").addEventListener("click", function () { el("pFileIn").click(); });
+  el("pFileIn").addEventListener("change", function () {
+    var file = el("pFileIn").files[0]; if (!file) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var js = JSON.parse(rd.result);
+        applyState(js.state || js); if (js.name) el("pName").value = js.name; save();
+        pMsg("Wczytano projekt z pliku" + (js.name ? " „" + js.name + "”" : "") + ". Kliknij Zapisz, żeby mieć go na liście.");
+      } catch (e) { pMsg("To nie jest plik projektu z Kalkulatora altanki."); }
+      el("pFileIn").value = "";
+    };
+    rd.readAsText(file);
+  });
+  el("pImport").addEventListener("click", function () {
+    try { applyState(readCode(el("pCode").value)); save(); el("pCode").value = ""; pMsg("Wczytano projekt z linku. Kliknij Zapisz, żeby mieć go na liście."); }
+    catch (e) { pMsg("Nie rozpoznaję tego linku ani kodu. Wklej cały link skopiowany przyciskiem „Kopiuj link”."); }
+  });
+  function loadFromHash() {
+    if (!/^#p=/.test(location.hash)) return false;
+    try {
+      applyState(readCode(location.hash));
+      pMsg("Otwarto projekt z linku" + (projName() ? " „" + projName() + "”" : "") + ". Kliknij Zapisz, żeby mieć go na liście.");
+      try { history.replaceState(null, "", location.href.split("#")[0]); } catch (e) {}
+      return true;
+    } catch (e) { pMsg("Link do projektu jest uszkodzony. Poproś o wysłanie go jeszcze raz."); return false; }
+  }
 
   el("reset").addEventListener("click", function () {
     IDS.forEach(function (id) { el(id).value = defaults[id]; });
@@ -2340,7 +2506,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   el("form").addEventListener("submit", function (e) { e.preventDefault(); });
 
   load();
-  render();
+  projList();
+  if (!loadFromHash()) render();
 })();
 </script>
 </body>
