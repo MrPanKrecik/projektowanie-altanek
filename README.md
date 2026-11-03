@@ -18,6 +18,9 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
 - **Dach i więźba** – dach jedno-, dwu- lub czterospadowy z okapem i daszkiem wysuniętym nad wejściem
   (na wspornikach albo na dodatkowych słupkach): krokwie, krokwie narożne i kulawe, jętki, oczepy, belki poprzeczne między słupkami,
   płatew kalenicowa, długości słupków, powierzchnia połaci, deski czołowe, łaty na szczytach, m³ drewna i zamówienie na wymiar do tartaku.
+- **Boazeria na dach** – liczba rzędów na każdej połaci, układ desek z łączeniami tylko na krokwiach
+  (na mijankę), dobór z dostępnych długości 0,7–5 m (także przy ograniczonej liczbie sztuk), lista zakupu
+  i plan cięcia z wykorzystaniem ścinków.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
 - **Wizualizacja 3D** – obracany model z kostką, obrzeżem, słupkami, drzwiami, drewutnią, więźbą
   i pokryciem dachu (pokrycie można schować, żeby zobaczyć krokwie).

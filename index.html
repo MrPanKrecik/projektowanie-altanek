@@ -92,6 +92,7 @@ label.check input { margin-top: 3px; accent-color: var(--accent); }
   content: attr(data-u); position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   font-family: var(--font-mono); font-size: 12px; color: var(--muted); pointer-events: none;
 }
+input[type="text"] { width: 100%; font: inherit; font-family: var(--font-mono); font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 7px 10px; }
 input[type="number"], select {
   width: 100%; font: inherit; font-family: var(--font-mono); font-size: 15px; color: var(--ink);
   background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 7px 34px 7px 10px;
@@ -102,6 +103,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .pair input[type="number"] { padding-right: 28px; }
 .checks4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.hint .mono { font-family: var(--font-mono); }
 .hint { font-size: 12.5px; color: var(--muted); margin: 0; }
 
 .btns { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -184,6 +186,13 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 .svg-zero { fill: var(--ink); }
 .svg-curb { fill: var(--ink); fill-opacity: 0.75; }
 .svg-roof { fill: none; stroke: var(--roof); stroke-width: 1.6; stroke-dasharray: 10 4 2 4; }
+.bz-row { display: grid; gap: 4px; }
+.bz-row .lab { font-size: 13px; color: var(--muted); }
+.bz-row svg { display: block; width: 100%; height: auto; }
+.bz-piece { fill: var(--wood-fill); stroke: var(--timber); stroke-width: 1.2; }
+.bz-piece.alt { fill: var(--pave-fill); }
+.bz-raft { fill: var(--timber); }
+.bz-txt { fill: var(--ink); font-family: var(--font-mono); font-size: 11px; }
 .svg-tie { stroke: var(--timber); stroke-width: 4; stroke-opacity: 0.45; }
 .svg-rafter { stroke: var(--roof); stroke-width: 1; stroke-opacity: 0.45; }
 .svg-ridge { stroke: var(--roof); stroke-width: 2.2; }
@@ -315,6 +324,27 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <span class="unit" data-u="cm"><input type="number" id="cut" step="1" min="0" value="5"></span>
           </label>
         </div>
+      </fieldset>
+
+      <fieldset id="boazFs">
+        <legend><i style="background:var(--timber)"></i>Boazeria na dach</legend>
+        <label class="check"><input type="checkbox" id="boaz" checked> Licz boazerię na krokwie</label>
+        <div class="row" id="boazBox1">
+          <label>Szerokość krycia
+            <select id="bzW">
+              <option value="10">10 cm</option>
+              <option value="8">8 cm</option>
+            </select>
+          </label>
+          <label>Poza skrajne krokwie
+            <span class="unit" data-u="cm"><input type="number" id="bzO" step="5" min="0" value="40"></span>
+          </label>
+        </div>
+        <label id="boazBox2">Dostępne długości
+          <input type="text" id="bzL" value="5, 4, 3, 2.5, 2, 1.5, 1, 0.7" spellcheck="false" autocomplete="off">
+        </label>
+        <p class="hint" id="boazHint">Długości w metrach, po przecinku. Jeśli jakiejś długości jest mało, dopisz liczbę sztuk, np. <span class="mono">5x20, 4, 3, 2.5x60</span>.</p>
+        <label class="check" id="boazBox3"><input type="checkbox" id="bzStag" checked> Łączenia na mijankę (co drugi rząd inaczej)</label>
       </fieldset>
 
       <fieldset>
@@ -535,6 +565,20 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <p class="note">Długości krokwi liczę po skosie, od kalenicy do krawędzi okapu, bez zapasu na zacięcia. Zamówienie dla tartaku to dokładne długości z zapasem na docięcie, zaokrąglone w górę do 10 cm. Ostrzeżenia o rozpiętościach są orientacyjne i nie zastępują obliczeń konstruktora. Krokwie spotykają się parami na kalenicy, bez belki na szczycie; płatew ze słupkami można włączyć przy kalenicy. Łata liczona jest tylko na krawędziach szczytów. Nie liczę mieczy, łat pod pokrycie i deskowania.</p>
       </section>
 
+      <section class="card" id="boazCard" hidden>
+        <h2>Boazeria na dach <span class="tag" id="boazTag"></span></h2>
+        <dl class="mat" id="boazMat"></dl>
+        <div id="boazRows"></div>
+        <dl class="mat" id="boazBuy"></dl>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Deska</th><th class="l">Tniesz na</th><th>Odpad</th><th>Szt.</th></tr></thead>
+            <tbody id="boazCut"></tbody>
+          </table>
+        </div>
+        <p class="note">Łączenia wypadają zawsze na środku krokwi, a każdy kawałek leży na co najmniej dwóch krokwiach. Program sprawdza wszystkie możliwe miejsca łączeń w rzędzie i dobiera układ, przy którym kupujesz najmniej metrów desek. Ścinki z cięcia wykorzystuje w kolejnych rzędach. Długości desek nie mają zapasu na docięcie czół.</p>
+      </section>
+
       <section class="card" id="woodCard" hidden>
         <h2>Drewutnia <span class="tag">kratownica i pojemność</span></h2>
         <dl class="mat" id="woodMat"></dl>
@@ -573,10 +617,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 (function () {
   "use strict";
   var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
-    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh",
+    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
-  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties"];
-  var KEY = "kalkulator-altanki-v7";
+  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag"];
+  var KEY = "kalkulator-altanki-v8";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
   IDS.forEach(function (id) { defaults[id] = el(id).value; });
@@ -767,6 +811,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     R.planes = planes.map(function (pl) {
       var poly = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
       planes.forEach(function (q) { if (q !== pl) poly = clipPoly(poly, function (x, y) { return q.d(x, y) - pl.d(x, y); }); });
+      pl.poly = poly; pl.rafts = [];
       return poly;
     }).filter(function (poly) { return poly.length >= 3; });
 
@@ -815,6 +860,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var Q = [P0[0] + pl.n[0] * stop, P0[1] + pl.n[1] * stop];
         R.rafters.push([P0[0], P0[1], Q[0], Q[1]]);
         raft.push({ plane: pl.name, len: stop / c, kind: kind });
+        pl.rafts.push({ u: u, run: stop });
       });
     });
     if (p.roof === "hip") {
@@ -856,6 +902,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       beam("Oczep boczny", xL, -Ep, xL, p.B, true); beam("Oczep boczny", xR, -Ep, xR, p.B, true);
       if (Ep > 0) beam("Belka nad frontem altany", 0, yW, p.A, yW, true);
     }
+
+    R.planeData = planes.map(function (pl) {
+      var horiz = pl.edge[0][1] === pl.edge[1][1];
+      return { name: pl.name, horiz: horiz, n: pl.n, edge: horiz ? pl.edge[0][1] : pl.edge[0][0], poly: pl.poly, rafts: pl.rafts.slice().sort(function (a, b) { return a.u - b.u; }) };
+    });
 
     // belki poprzeczne: od każdego słupka ściany okapowej na drugą stronę, na wysokości oczepu
     R.ties = [];
@@ -978,6 +1029,214 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       return { key: key, name: secs[key].n, b: secs[key].b, h: secs[key].h, mb: mb, m3: mb * secs[key].b * secs[key].h, order: order, count: n };
     }).filter(function (x) { return x.count > 0; });
     return R;
+  }
+
+
+  // ---------- boazeria na dach ----------
+  function parseStock(txt) {
+    var out = [];
+    String(txt).split(/[,;]+/).forEach(function (part) {
+      var m = part.trim().replace(/,/g, ".").match(/^(\d+(?:\.\d+)?)\s*(?:m)?\s*(?:[x×*]\s*(\d+))?$/i);
+      if (!m) return;
+      var L = parseFloat(m[1]); if (L > 20) L = L / 100;          // ktoś wpisał centymetry
+      if (L < 0.2) return;
+      var max = m[2] ? parseInt(m[2], 10) : Infinity;
+      var ex = out.filter(function (o) { return Math.abs(o.len - L) < 1e-6; })[0];
+      if (ex) ex.max = ex.max === Infinity || max === Infinity ? Infinity : ex.max + max;
+      else out.push({ len: L, max: max });
+    });
+    return out.sort(function (a, b) { return a.len - b.len; });
+  }
+  // przekrój połaci linią równoległą do okapu w odległości dp (w rzucie) → [od, do] wzdłuż okapu
+  function polyCut(pd, dp) {
+    var line = pd.edge + (pd.horiz ? pd.n[1] : pd.n[0]) * dp, lo = Infinity, hi = -Infinity, poly = pd.poly;
+    for (var i = 0; i < poly.length; i++) {
+      var a = poly[i], b = poly[(i + 1) % poly.length];
+      var va = pd.horiz ? a[1] : a[0], vb = pd.horiz ? b[1] : b[0];
+      var ua = pd.horiz ? a[0] : a[1], ub = pd.horiz ? b[0] : b[1];
+      if ((va - line) * (vb - line) <= 0 && Math.abs(vb - va) > 1e-9) {
+        var u = ua + (line - va) / (vb - va) * (ub - ua);
+        lo = Math.min(lo, u); hi = Math.max(hi, u);
+      } else if (Math.abs(va - line) < 1e-9) { lo = Math.min(lo, ua); hi = Math.max(hi, ua); }
+    }
+    return lo < hi ? [lo, hi] : null;
+  }
+  // wszystkie podziały rzędu: łączenia tylko na krokwiach, każdy kawałek na ≥ 2 krokwiach, nie dłuższy niż maxL
+  function rowSplits(row, maxL, limit) {
+    var S = row.sup, L = row.L, res = [], MINP = Math.min(0.4, L);   // bez ścinków krótszych niż 40 cm
+    function supIn(a, b) { var n = 0; for (var i = 0; i < S.length; i++) if (S[i] >= a - 1e-6 && S[i] <= b + 1e-6) n++; return n; }
+    (function rec(a, cuts) {
+      if (res.length >= limit) return;
+      if (L - a <= maxL + 1e-9 && L - a >= MINP - 1e-9 && supIn(a, L) >= 2) res.push(cuts.concat([L]));
+      for (var k = 0; k < S.length; k++) {
+        var j = S[k];
+        if (j <= a + 1e-6 || j >= L - 1e-6) continue;
+        if (j - a > maxL + 1e-9) break;
+        if (j - a >= MINP - 1e-9 && supIn(a, j) >= 2) rec(j, cuts.concat([j]));
+      }
+    })(0, []);
+    return res.map(function (cuts) {
+      var pcs = [], prev = 0;
+      cuts.forEach(function (c) { pcs.push(c - prev); prev = c; });
+      return { joints: cuts.slice(0, -1), pcs: pcs };
+    });
+  }
+  // rozkrój: kawałki → deski z dostępnych długości (najlepsze dopasowanie, ścinki idą dalej)
+  function packBoards(pieces, stock, bigFirst) {
+    var KERF = 0.003, bins = [], used = {};
+    var sorted = pieces.slice().sort(function (a, b) { return b - a; });
+    for (var i = 0; i < sorted.length; i++) {
+      var pc = sorted[i], best = -1;
+      for (var j = 0; j < bins.length; j++) if (bins[j].rem >= pc - 1e-9 && (best < 0 || bins[j].rem < bins[best].rem)) best = j;
+      if (best >= 0) { bins[best].rem -= pc + KERF; bins[best].cuts.push(pc); continue; }
+      var cand = stock.filter(function (st) { return st.len >= pc - 1e-9 && (used[st.len] || 0) < st.max; });
+      if (!cand.length) return null;
+      var st = bigFirst ? cand[cand.length - 1] : cand[0];
+      used[st.len] = (used[st.len] || 0) + 1;
+      bins.push({ len: st.len, rem: st.len - pc - KERF, cuts: [pc] });
+    }
+    var bought = bins.reduce(function (a, b) { return a + b.len; }, 0);
+    return { bins: bins, bought: bought, n: bins.length };
+  }
+  function bestPack(pieces, stock) {
+    var a = packBoards(pieces, stock, false), b = packBoards(pieces, stock, true);
+    if (!a) return b; if (!b) return a;
+    return (b.bought < a.bought - 1e-9 || (Math.abs(b.bought - a.bought) < 1e-9 && b.n < a.n)) ? b : a;
+  }
+  var bzCache = {};
+  function boazCalc(r) {
+    var p = r.p, R = r.roof;
+    if (!R || !el("boaz").checked) return null;
+    var w = parseFloat(el("bzW").value) / 100, ov = num("bzO") / 100, stock = parseStock(el("bzL").value), stag = el("bzStag").checked;
+    if (!stock.length) return { err: "Wpisz dostępne długości boazerii, np. 5, 4, 3, 2.5." };
+    var maxL = stock[stock.length - 1].len;
+    // typy rzędów: rząd = położenie krokwi + długość
+    var types = {}, totalM2 = 0, rowsPerPlane = [];
+    R.planeData.forEach(function (pd) {
+      var maxRun = pd.rafts.reduce(function (m, a) { return Math.max(m, a.run); }, 0);
+      var nRows = Math.ceil(maxRun / R.c / w - 1e-6);
+      rowsPerPlane.push({ name: pd.name, n: nRows, slope: maxRun / R.c });
+      for (var i = 0; i < nRows; i++) {
+        var dp = (i + 0.5) * w * R.c, row;
+        if (R.type === "hip") {
+          var ext = polyCut(pd, dp); if (!ext) continue;
+          var sup = [0].concat(pd.rafts.filter(function (a) { return a.run >= dp && a.u > ext[0] && a.u < ext[1]; }).map(function (a) { return a.u - ext[0]; }), [ext[1] - ext[0]]);
+          row = { L: ext[1] - ext[0], sup: sup };
+        } else {
+          var us = pd.rafts.map(function (a) { return a.u; });
+          var a0 = us[0] - p.kb / 2 - ov, a1 = us[us.length - 1] + p.kb / 2 + ov;
+          row = { L: a1 - a0, sup: us.map(function (u) { return u - a0; }) };
+        }
+        var key = row.L.toFixed(3) + "|" + row.sup.map(function (x) { return x.toFixed(3); }).join(",");
+        if (!types[key]) types[key] = { row: row, n: 0, planes: {} };
+        types[key].n++; types[key].planes[pd.name] = 1;
+        totalM2 += row.L * w;
+      }
+    });
+    var key = JSON.stringify([Object.keys(types).map(function (k) { return k + "#" + types[k].n; }), stock, stag]);
+    if (bzCache.key === key) return bzCache.val;
+
+    var warnTxt = [];
+    function standalone(sp) {
+      var waste = 0;
+      sp.pcs.forEach(function (pc) { var st = stock.filter(function (s) { return s.len >= pc - 1e-9; })[0]; waste += st ? st.len - pc : 99; });
+      return waste + 0.03 * sp.pcs.length;
+    }
+    var plan = [], allPieces = [];
+    Object.keys(types).forEach(function (k) {
+      var T = types[k];
+      var opts = rowSplits(T.row, maxL, 20000);
+      if (!opts.length) { warnTxt.push("Rzędu długości " + fcm(T.row.L) + " cm nie da się ułożyć z podanych długości tak, żeby każdy kawałek leżał na dwóch krokwiach. Dodaj dłuższe deski."); return; }
+      opts.forEach(function (o) { o.cost = standalone(o); });
+      opts.sort(function (a, b) { return a.cost - b.cost; });
+      var top = opts.slice(0, 40), best = null;
+      var nA = Math.ceil(T.n / 2), nB = T.n - nA;
+      for (var i = 0; i < top.length; i++) for (var j = i; j < top.length; j++) {
+        var A = top[i], B = top[j];
+        if (T.n < 2 && j !== i) continue;
+        var shared = A.joints.some(function (x) { return B.joints.some(function (y) { return Math.abs(x - y) < 1e-6; }); });
+        var stagOk = !shared || (A.joints.length === 0 && B.joints.length === 0);
+        var pcs = [];
+        for (var a = 0; a < nA; a++) pcs = pcs.concat(A.pcs);
+        for (var b = 0; b < nB; b++) pcs = pcs.concat(B.pcs);
+        var pk = bestPack(pcs, stock);
+        if (!pk) continue;
+        // mijanka: przy tej samej ilości metrów wygrywa układ bez wspólnych łączeń
+        var score = pk.bought + (stag && !stagOk ? pk.bought * 0.06 : 0) + pk.n * 0.001;
+        if (!best || score < best.score - 1e-9) best = { A: A, B: B, nA: nA, nB: nB, score: score, stagOk: stagOk };
+      }
+      if (!best) { warnTxt.push("Z podanych ilości desek nie da się pokryć rzędów długości " + fcm(T.row.L) + " cm. Zwiększ liczbę sztuk albo dodaj inne długości."); return; }
+      plan.push({ row: T.row, n: T.n, planes: Object.keys(T.planes), A: best.A, B: best.B, nA: best.nA, nB: best.nB, stagOk: best.stagOk });
+    });
+    // wspólny rozkrój wszystkich rzędów
+    plan.forEach(function (pl) {
+      for (var a = 0; a < pl.nA; a++) allPieces = allPieces.concat(pl.A.pcs);
+      for (var b = 0; b < pl.nB; b++) allPieces = allPieces.concat(pl.B.pcs);
+    });
+    var pk = allPieces.length ? bestPack(allPieces, stock) : null;
+    if (allPieces.length && !pk) warnTxt.push("Podanych sztuk desek nie starcza na cały dach. Zwiększ liczbę sztuk albo dodaj inne długości.");
+    var val = { w: w, ov: ov, stock: stock, plan: plan, pack: pk, m2: totalM2, rows: rowsPerPlane, warn: warnTxt,
+      need: allPieces.reduce(function (a, b) { return a + b; }, 0) };
+    bzCache = { key: key, val: val };
+    return val;
+  }
+  function rzedy(n) {
+    var d = n % 10, dd = n % 100;
+    return n + (n === 1 ? " rząd" : (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) ? " rzędy" : " rzędów");
+  }
+  function rowSvg(row, sp, alt) {
+    var W = 760, H = 46, k = (W - 2) / row.L, o = [];
+    o.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Układ desek w rzędzie">');
+    var x = 0;
+    sp.pcs.forEach(function (pc, i) {
+      o.push('<rect x="' + (1 + x * k).toFixed(1) + '" y="8" width="' + (pc * k).toFixed(1) + '" height="16" class="bz-piece' + ((i + (alt ? 1 : 0)) % 2 ? " alt" : "") + '"/>');
+      if (pc * k > 36) o.push('<text x="' + (1 + (x + pc / 2) * k).toFixed(1) + '" y="20" text-anchor="middle" class="bz-txt">' + fcm(pc) + '</text>');
+      x += pc;
+    });
+    row.sup.forEach(function (u) { o.push('<rect x="' + (1 + u * k - 2).toFixed(1) + '" y="26" width="4" height="12" class="bz-raft"/>'); });
+    o.push('</svg>');
+    return o.join("");
+  }
+  function renderBoaz(r) {
+    var B = boazCalc(r), card = el("boazCard");
+    card.hidden = !B;
+    if (!B) return null;
+    if (B.err) { el("boazTag").textContent = ""; el("boazMat").innerHTML = row("Boazeria", B.err); el("boazRows").innerHTML = el("boazBuy").innerHTML = el("boazCut").innerHTML = ""; return B; }
+    el("boazTag").textContent = "szerokość " + fcm(B.w) + " cm, " + fcm(B.ov) + " cm poza skrajne krokwie";
+    var m = [];
+    B.rows.forEach(function (rp) { m.push(row("Połać " + rp.name + "<small>" + f(rp.slope, 2) + " m od okapu do szczytu</small>", rzedy(rp.n))); });
+    m.push(row("Powierzchnia boazerii", f(B.m2, 2) + " m²"));
+    el("boazMat").innerHTML = m.join("") + B.warn.map(function (t) { return row("Uwaga", t); }).join("");
+    // układy rzędów (bez rzędów przy narożach dachu czterospadowego, tam pokazuję tylko podsumowanie)
+    var html = "";
+    var shown = B.plan.slice().sort(function (a, b) { return b.n - a.n; }).slice(0, 3);
+    shown.forEach(function (pl) {
+      var same = pl.A === pl.B;
+      html += '<div class="bz-row"><span class="lab">Rząd ' + fcm(pl.row.L) + ' cm' + (pl.n > 1 ? ", " + rzedy(pl.n) : "") + (same ? "" : " · układ A (" + rzedy(pl.nA) + ")") + ': ' + pl.A.pcs.map(fcm).join(" + ") + ' cm</span>' + rowSvg(pl.row, pl.A, false) + '</div>';
+      if (!same && pl.nB) html += '<div class="bz-row"><span class="lab">Układ B (' + rzedy(pl.nB) + ', na zmianę z A): ' + pl.B.pcs.map(fcm).join(" + ") + ' cm</span>' + rowSvg(pl.row, pl.B, true) + '</div>';
+    });
+    if (B.plan.length > shown.length) html += '<p class="note">Pozostałe ' + rzedy(B.plan.length - shown.length) + ' przy narożach ma inne długości i są w rozkroju poniżej.</p>';
+    el("boazRows").innerHTML = html;
+    if (B.pack) {
+      var by = {};
+      B.pack.bins.forEach(function (b) { by[b.len] = (by[b.len] || 0) + 1; });
+      var buy = Object.keys(by).map(Number).sort(function (a, b) { return b - a; });
+      el("boazBuy").innerHTML = buy.map(function (L) { return row("Deski " + f(L, L % 1 ? 1 : 0) + " m", by[L] + " szt. · " + f(by[L] * L, 1) + " mb"); }).join("") +
+        row("Razem do kupienia<small>odpad " + f((1 - B.need / B.pack.bought) * 100, 1) + "%</small>", B.pack.n + " szt. · " + f(B.pack.bought, 1) + " mb · " + f(B.pack.bought * B.w, 2) + " m²");
+      var pat = {};
+      B.pack.bins.forEach(function (b) {
+        var cuts = b.cuts.slice().sort(function (x, y) { return y - x; });
+        var k = b.len + "|" + cuts.map(function (x) { return x.toFixed(3); }).join(",");
+        if (!pat[k]) pat[k] = { len: b.len, cuts: cuts, n: 0, waste: Math.max(0, b.len - cuts.reduce(function (a, c) { return a + c; }, 0)) };
+        pat[k].n++;
+      });
+      var pats = Object.keys(pat).map(function (k) { return pat[k]; }).sort(function (a, b) { return b.n - a.n || b.len - a.len; });
+      var LIM = 14, rest = pats.slice(LIM);
+      el("boazCut").innerHTML = pats.slice(0, LIM).sort(function (a, b) { return b.len - a.len || b.n - a.n; }).map(function (pt) {
+        return "<tr><td class=\"mono\">" + f(pt.len, pt.len % 1 ? 1 : 0) + " m</td><td class=\"l mono\">" + pt.cuts.map(fcm).join(" + ") + " cm</td><td class=\"mono\">" + fcm(pt.waste) + " cm</td><td class=\"mono\">" + pt.n + "</td></tr>";
+      }).join("") + (rest.length ? "<tr><td colspan=\"4\" class=\"l\">…i jeszcze " + rest.reduce(function (a, x) { return a + x.n; }, 0) + " desek ciętych pojedynczo na krótsze rzędy przy narożach (w sumie wliczone wyżej)</td></tr>" : "");
+    } else { el("boazBuy").innerHTML = ""; el("boazCut").innerHTML = ""; }
+    return B;
   }
 
   // ---------- obliczenia ----------
@@ -1223,6 +1482,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("sDirWrap").hidden = rf !== "mono";
     el("ridgeWrap").hidden = rf === "mono" || rf === "hip";
     el("tiesWrap").hidden = !rOn;
+    el("boazFs").hidden = !rOn;
+    ["boazBox1", "boazBox2", "boazHint", "boazBox3"].forEach(function (id) { el(id).hidden = !el("boaz").checked; });
     el("jetkiWrap").hidden = rf !== "gable" || el("ridge").checked;
     el("ridgeTxt").textContent = rf === "none" ? "Słupek na środku krótszych ścian (pod kalenicę)" : "Płatew i słupki pod kalenicą (zwykle niepotrzebne)";
     var wOn = el("wood").checked;
@@ -1236,7 +1497,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("warn").innerHTML = r.warn.map(function (w) { return "<div>" + w + "</div>"; }).join("");
     if (r.bad) {
       ["stats", "plan", "mat", "posts", "tbl", "steps", "woodMat", "roofMat", "roofTbl", "roofSum"].forEach(function (id) { el(id).innerHTML = ""; });
-      el("woodCard").hidden = true; el("roofCard").hidden = true;
+      el("woodCard").hidden = true; el("roofCard").hidden = true; el("boazCard").hidden = true;
       return;
     }
     var p = r.p;
@@ -1295,6 +1556,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           sm.order.map(function (o) { return o.n + " × " + fcm(o.len) + " cm"; }).join("<br>"));
       }).join("") + row("Drewno razem<small>do zamówienia w tartaku</small>", f(R.sum.reduce(function (a, x) { return a + x.m3; }, 0), 3) + " m³");
     }
+
+    r.boaz = R ? renderBoaz(r) : (el("boazCard").hidden = true, null);
 
     el("woodCard").hidden = !wood;
     if (wood) {
@@ -1622,6 +1885,12 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       L.push("");
       L.push("WIĘŹBA: " + roofDesc(r) + ", połać " + f(r.roof.area, 2) + " m²");
       r.roof.els.forEach(function (e) { L.push("  " + e.name + " " + secTxt(r, e.sec) + " cm: " + e.n + " × " + fcm(e.len) + " cm"); });
+      var Bz = boazCalc(r);
+      if (Bz && Bz.pack) {
+        var byL = {};
+        Bz.pack.bins.forEach(function (b) { byL[b.len] = (byL[b.len] || 0) + 1; });
+        L.push("  Boazeria " + fcm(Bz.w) + " cm: " + Object.keys(byL).map(Number).sort(function (a, b) { return b - a; }).map(function (k) { return byL[k] + " × " + f(k, k % 1 ? 1 : 0) + " m"; }).join(", ") + " (" + f(Bz.pack.bought, 1) + " mb, " + f(Bz.m2, 2) + " m² krycia)");
+      }
       L.push("  Zamówienie w tartaku (z zapasem " + fcm(p.cut) + " cm):");
       r.roof.sum.forEach(function (sm) { L.push("  " + fcm(sm.b) + "×" + fcm(sm.h) + " " + sm.name.toLowerCase() + ": " + sm.order.map(function (o) { return o.n + " × " + fcm(o.len) + " cm"; }).join(", ") + " (" + f(sm.m3, 3) + " m³)"); });
       L.push("");
@@ -1979,6 +2248,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       if (V3.ready) { build3d(r); parts.push(el("v3card")); }
       parts.push(document.querySelector(".two"));
       if (!el("roofCard").hidden) parts.push(el("roofCard"));
+      if (!el("boazCard").hidden) parts.push(el("boazCard"));
       if (!el("woodCard").hidden) parts.push(el("woodCard"));
       parts.push(el("tbl").closest(".card"), el("steps").closest(".card"));
 
