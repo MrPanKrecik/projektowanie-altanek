@@ -760,7 +760,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       if (p.rDir === "par") {
         var yr = (sy0 + sy1) / 2;
         var xs2 = along(x0, x1);
-        xs2.forEach(function (x) { R.rafters.push([x, y0, x, y1]); });
+        // para krokwi: każda od okapu do kalenicy
+        xs2.forEach(function (x) { R.rafters.push([x, y0, x, yr], [x, y1, x, yr]); });
         var lf = (yr - y0) / c, lb = (y1 - yr) / c;
         if (Math.abs(lf - lb) < 0.005) add("Krokwie", "k", lf, 2 * xs2.length);
         else { add("Krokwie – połać przednia", "k", lf, xs2.length); add("Krokwie – połać tylna", "k", lb, xs2.length); }
@@ -778,7 +779,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       } else {
         var xr = p.A / 2;
         var ys2 = along(y0, y1);
-        ys2.forEach(function (y) { R.rafters.push([x0, y, x1, y]); });
+        ys2.forEach(function (y) { R.rafters.push([x0, y, xr, y], [x1, y, xr, y]); });
         add("Krokwie", "k", (p.A / 2 + o) / c, 2 * ys2.length);
         R.ridge = [xr, y0, xr, y1];
         add("Oczep boczny (pod krokwiami)", "b", R.RD, 2);
