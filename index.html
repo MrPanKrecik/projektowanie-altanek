@@ -290,20 +290,20 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         </div>
         <div class="row" id="roofBox3">
           <label>Krokiew szer. × wys.
-            <span class="pair"><span class="unit" data-u="cm"><input type="number" id="kb" step="1" min="3" value="5" aria-label="Szerokość krokwi"></span><span class="unit" data-u="cm"><input type="number" id="kh" step="1" min="8" value="15" aria-label="Wysokość krokwi"></span></span>
+            <span class="pair"><span class="unit" data-u="cm"><input type="number" id="kb" step="1" min="3" value="6" aria-label="Szerokość krokwi"></span><span class="unit" data-u="cm"><input type="number" id="kh" step="1" min="8" value="12" aria-label="Wysokość krokwi"></span></span>
           </label>
           <label>Belka szer. × wys.
-            <span class="pair"><span class="unit" data-u="cm"><input type="number" id="bb" step="1" min="5" value="12" aria-label="Szerokość belki"></span><span class="unit" data-u="cm"><input type="number" id="bh" step="1" min="8" value="14" aria-label="Wysokość belki"></span></span>
+            <span class="pair"><span class="unit" data-u="cm"><input type="number" id="bb" step="1" min="5" value="12" aria-label="Szerokość belki"></span><span class="unit" data-u="cm"><input type="number" id="bh" step="1" min="8" value="12" aria-label="Wysokość belki"></span></span>
           </label>
         </div>
-        <label id="stockWrap">Długość handlowa drewna
-          <select id="stock">
-            <option value="6">6 m</option>
-            <option value="5">5 m</option>
-            <option value="4">4 m</option>
-            <option value="7">7 m</option>
-          </select>
-        </label>
+        <div class="row" id="stockWrap">
+          <label>Deska czołowa szer. × wys.
+            <span class="pair"><span class="unit" data-u="cm"><input type="number" id="db" step="0.5" min="1" value="2.5" aria-label="Grubość deski"></span><span class="unit" data-u="cm"><input type="number" id="dh" step="1" min="5" value="15" aria-label="Szerokość deski"></span></span>
+          </label>
+          <label>Zapas na docięcie
+            <span class="unit" data-u="cm"><input type="number" id="cut" step="1" min="0" value="5"></span>
+          </label>
+        </div>
       </fieldset>
 
       <fieldset>
@@ -514,13 +514,13 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <div class="tbl-wrap">
           <table>
             <thead>
-              <tr><th>Element</th><th>Przekrój</th><th>Długość</th><th>Szt.</th><th>Razem</th></tr>
+              <tr><th>Element</th><th>Przekrój</th><th>Długość netto</th><th>Szt.</th><th>Razem</th></tr>
             </thead>
             <tbody id="roofTbl"></tbody>
           </table>
         </div>
         <dl class="mat" id="roofSum"></dl>
-        <p class="note">Długości krokwi liczę po skosie, od kalenicy do krawędzi okapu, bez zapasu na zacięcia. Zamówienie w sztukach handlowych zakłada 3 cm na każde cięcie. Ostrzeżenia o rozpiętościach są orientacyjne i nie zastępują obliczeń konstruktora. Nie liczę mieczy, łat i deskowania.</p>
+        <p class="note">Długości krokwi liczę po skosie, od kalenicy do krawędzi okapu, bez zapasu na zacięcia. Zamówienie dla tartaku to dokładne długości z zapasem na docięcie, zaokrąglone w górę do 10 cm. Ostrzeżenia o rozpiętościach są orientacyjne i nie zastępują obliczeń konstruktora. Płatew kalenicowa to belka na słupkach pod szczytem; deskę kalenicową (z jętkami) liczę, gdy wyłączysz słupki pod kalenicę. Nie liczę mieczy, łat i deskowania.</p>
       </section>
 
       <section class="card" id="woodCard" hidden>
@@ -561,10 +561,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 (function () {
   "use strict";
   var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
-    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "stock",
+    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
   var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw"];
-  var KEY = "kalkulator-altanki-v4";
+  var KEY = "kalkulator-altanki-v5";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
   IDS.forEach(function (id) { defaults[id] = el(id).value; });
@@ -687,16 +687,33 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 
   // ---------- więźba dachowa ----------
   // Współrzędne altany: x wzdłuż frontu, y w głąb, front przy y = 0, daszek przy y < 0.
+  // Każda połać to płaszczyzna: wysokość spodu krokwi = podstawa + tg(kąt) × odległość od linii oczepu okapowego.
+  // Dach w danym punkcie to najniższa z połaci, więc kalenice i krokwie narożne wychodzą same z przecięć.
+  function clipPoly(poly, g) {
+    // zostawia część wielokąta, gdzie g(x, y) >= 0
+    var out = [];
+    for (var i = 0; i < poly.length; i++) {
+      var a = poly[i], b = poly[(i + 1) % poly.length];
+      var ga = g(a[0], a[1]), gb = g(b[0], b[1]);
+      if (ga >= -1e-9) out.push(a);
+      if ((ga >= -1e-9) !== (gb >= -1e-9)) {
+        var k = ga / (ga - gb);
+        out.push([a[0] + k * (b[0] - a[0]), a[1] + k * (b[1] - a[1])]);
+      }
+    }
+    return out;
+  }
   function roofCalc(p, pts, Ep, maxPostSpan, warn) {
     if (p.roof === "none") return null;
     var rad = p.ang * Math.PI / 180, t = Math.tan(rad), c = Math.cos(rad);
-    var o = p.ov;
+    var o = p.ov, s2 = p.s / 2;
     var F = Ep > 0 ? Ep + o : Math.max(p.ext, o);       // jak daleko dach wychodzi przed front
     var x0 = -o, x1 = p.A + o, y0 = -F, y1 = p.B + o;
-    var sy0 = -Ep, sy1 = p.B;                             // linie oczepów z przodu i z tyłu
+    var xL = s2, xR = p.A - s2, yF = -Ep + s2, yB = p.B - s2, yW = s2;   // osie linii słupków
+    var base = p.ph + p.bh;                               // spód krokwi nad oczepem okapowym
     var R = {
-      type: p.roof, x0: x0, x1: x1, y0: y0, y1: y1, RW: x1 - x0, RD: y1 - y0, F: F, t: t, c: c,
-      area: (x1 - x0) * (y1 - y0) / c, rafters: [], ridge: null, hips: [], els: [], rise: 0, spacing: 0, arrow: null
+      type: p.roof, x0: x0, x1: x1, y0: y0, y1: y1, RW: x1 - x0, RD: y1 - y0, F: F, t: t, c: c, base: base,
+      area: (x1 - x0) * (y1 - y0) / c, rafters: [], ridge: null, ridgeKind: null, hips: [], beams: [], boards: [], els: [], spacing: 0, arrow: null
     };
     function add(name, sec, len, n) {
       if (len <= 0.005 || n <= 0) return;
@@ -707,7 +724,6 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       }
       R.els.push({ name: name, sec: sec, len: L, n: n });
     }
-    // osie krokwi od krawędzi do krawędzi dachu; skrajne krokwie licują z krawędzią
     function along(a, b) {
       var a2 = a + p.kb / 2, b2 = b - p.kb / 2;
       var n = Math.max(1, Math.ceil((b2 - a2) / p.rs - 1e-9));
@@ -716,173 +732,211 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       R.spacing = (b2 - a2) / n;
       return out;
     }
-    function frontBack(len, sloped) {
-      var l = sloped ? len / c : len;
-      add(Ep > 0 ? "Oczep przedni (na słupkach daszka)" : "Oczep przedni", "b", l, 1);
-      add("Oczep tylny", "b", l, 1);
-      if (Ep > 0) add("Belka nad frontem altany", "b", sloped ? p.A / c : p.A, 1);
-    }
-    var supportsY = [sy0, sy1];
-    if (Ep > 0) supportsY.push(0);
-    var free = 0;  // największa rozpiętość krokwi między podporami, w poziomie
-    function maxGap(list) { list.sort(function (a, b) { return a - b; }); var g = 0; for (var i = 0; i < list.length - 1; i++) g = Math.max(g, list[i + 1] - list[i]); return g; }
-    var heightAt = function () { return p.ph; };
 
-    if (p.roof === "mono") {
-      if (p.sDir === "back" || p.sDir === "front") {
-        var xs = along(x0, x1);
-        xs.forEach(function (x) { R.rafters.push([x, y0, x, y1]); });
-        add("Krokwie", "k", R.RD / c, xs.length);
-        frontBack(R.RW, false);
-        add("Oczep boczny (po skosie)", "b", (p.B + Ep) / c, 2);
-        free = maxGap(supportsY.slice());
-        var lowY = p.sDir === "back" ? p.B - p.s / 2 : -Ep + p.s / 2;
-        R.rise = (p.B + Ep - p.s) * t;
-        heightAt = function (q) { return p.ph + Math.abs(q.ay - lowY) * t; };
-        R.d = p.sDir === "back" ? function (x, y) { return lowY - y; } : function (x, y) { return y - lowY; };
-        R.planes = [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]];
-      } else {
-        var ys = along(y0, y1);
-        ys.forEach(function (y) { R.rafters.push([x0, y, x1, y]); });
-        add("Krokwie", "k", R.RW / c, ys.length);
-        add("Oczep boczny (pod krokwiami)", "b", R.RD, 2);
-        frontBack(p.A, true);
-        free = p.A;
-        var lowX = p.sDir === "left" ? p.s / 2 : p.A - p.s / 2;
-        R.rise = (p.A - p.s) * t;
-        heightAt = function (q) { return p.ph + Math.abs(q.ax - lowX) * t; };
-        R.d = p.sDir === "left" ? function (x) { return x - lowX; } : function (x) { return lowX - x; };
-        R.planes = [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]];
-      }
-      R.arrow = p.sDir;
-    } else if (p.roof === "gable") {
-      var pairs, half;
-      if (p.rDir === "par") {
-        var yr = (sy0 + sy1) / 2;
-        var xs2 = along(x0, x1);
-        // para krokwi: każda od okapu do kalenicy
-        xs2.forEach(function (x) { R.rafters.push([x, y0, x, yr], [x, y1, x, yr]); });
-        var lf = (yr - y0) / c, lb = (y1 - yr) / c;
-        if (Math.abs(lf - lb) < 0.005) add("Krokwie", "k", lf, 2 * xs2.length);
-        else { add("Krokwie – połać przednia", "k", lf, xs2.length); add("Krokwie – połać tylna", "k", lb, xs2.length); }
-        R.ridge = [x0, yr, x1, yr];
-        frontBack(R.RW, false);
-        add("Oczep boczny (szczyt)", "b", p.B + Ep, 2);
-        supportsY.push(yr);
-        free = maxGap(supportsY.slice());
-        pairs = xs2.length; half = yr - sy0;
-        R.ridgeLen = R.RW;
-        R.rise = (half - p.s / 2) * t;
-        var hrP = half - p.s / 2;
-        R.d = function (x, y) { return hrP - Math.abs(y - yr); };
-        R.planes = [[[x0, y0], [x1, y0], [x1, yr], [x0, yr]], [[x0, yr], [x1, yr], [x1, y1], [x0, y1]]];
-      } else {
-        var xr = p.A / 2;
-        var ys2 = along(y0, y1);
-        ys2.forEach(function (y) { R.rafters.push([x0, y, xr, y], [x1, y, xr, y]); });
-        add("Krokwie", "k", (p.A / 2 + o) / c, 2 * ys2.length);
-        R.ridge = [xr, y0, xr, y1];
-        add("Oczep boczny (pod krokwiami)", "b", R.RD, 2);
-        add(Ep > 0 ? "Oczep przedni (szczyt, na słupkach daszka)" : "Oczep przedni (szczyt)", "b", p.A, 1);
-        add("Oczep tylny (szczyt)", "b", p.A, 1);
-        if (Ep > 0) add("Belka nad frontem altany", "b", p.A, 1);
-        free = p.A / 2;
-        pairs = ys2.length; half = p.A / 2;
-        R.ridgeLen = R.RD;
-        R.rise = (half - p.s / 2) * t;
-        var hrQ = half - p.s / 2;
-        R.d = function (x) { return hrQ - Math.abs(x - xr); };
-        R.planes = [[[x0, y0], [xr, y0], [xr, y1], [x0, y1]], [[xr, y0], [x1, y0], [x1, y1], [xr, y1]]];
-      }
-      if (p.ridge) {
-        add("Płatew kalenicowa", "b", R.ridgeLen, 1);
-        heightAt = function (q) { return q.ridge ? p.ph + R.rise : p.ph; };
-      } else {
-        // bez słupków pod kalenicą krokwie pracują parami, spięte jętkami na 2/3 wysokości
-        add("Deska kalenicowa", "k", R.ridgeLen, 1);
-        add("Jętki", "k", 2 * half / 3 + 0.2, pairs);
-      }
+    // połacie: d = odległość od linii oczepu okapowego, rośnie w górę połaci
+    var PL = {
+      front: { key: "front", name: "przednia", n: [0, 1], d: function (x, y) { return y - yF; }, edge: [[x0, y0], [x1, y0]] },
+      back: { key: "back", name: "tylna", n: [0, -1], d: function (x, y) { return yB - y; }, edge: [[x0, y1], [x1, y1]] },
+      left: { key: "left", name: "lewa", n: [1, 0], d: function (x) { return x - xL; }, edge: [[x0, y0], [x0, y1]] },
+      right: { key: "right", name: "prawa", n: [-1, 0], d: function (x) { return xR - x; }, edge: [[x1, y0], [x1, y1]] }
+    };
+    var keys;
+    if (p.roof === "mono") keys = [p.sDir];               // spadek do tyłu = okap z tyłu
+    else if (p.roof === "gable") keys = p.rDir === "par" ? ["front", "back"] : ["left", "right"];
+    else keys = ["front", "back", "left", "right"];
+    var planes = keys.map(function (k) { return PL[k]; });
+    R.d = function (x, y) { var m = Infinity; planes.forEach(function (pl) { m = Math.min(m, pl.d(x, y)); }); return m; };
+    R.z = function (x, y) { return base + t * R.d(x, y); };
+    function clampX(x) { return Math.max(xL, Math.min(xR, x)); }
+    function clampY(y) { return Math.max(yF, Math.min(yB, y)); }
+
+    // pokrycie: obrys dachu przycięty do obszaru każdej połaci
+    R.planes = planes.map(function (pl) {
+      var poly = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+      planes.forEach(function (q) { if (q !== pl) poly = clipPoly(poly, function (x, y) { return q.d(x, y) - pl.d(x, y); }); });
+      return poly;
+    }).filter(function (poly) { return poly.length >= 3; });
+
+    // kalenica i krokwie narożne
+    var ridgeA = null, ridgeB = null;
+    if (p.roof === "gable") {
+      if (p.rDir === "par") { var yr = (yF + yB) / 2; ridgeA = [x0, yr]; ridgeB = [x1, yr]; }
+      else { var xr = (xL + xR) / 2; ridgeA = [xr, y0]; ridgeB = [xr, y1]; }
     } else if (p.roof === "hip") {
-      var h = Math.min(R.RW, R.RD) / 2;
-      var ridgeX = R.RW >= R.RD;
-      var rl = Math.abs(R.RW - R.RD);
-      var cx0, cy0, cx1, cy1;
-      if (ridgeX) { cy0 = cy1 = (y0 + y1) / 2; cx0 = x0 + h; cx1 = x1 - h; }
-      else { cx0 = cx1 = (x0 + x1) / 2; cy0 = y0 + h; cy1 = y1 - h; }
-      if (rl > 0.01) { R.ridge = [cx0, cy0, cx1, cy1]; add("Płatew kalenicowa", "b", rl, 1); }
-      // narożniki → najbliższy koniec kalenicy
-      [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].forEach(function (cn) {
-        var d0 = Math.hypot(cn[0] - cx0, cn[1] - cy0), d1 = Math.hypot(cn[0] - cx1, cn[1] - cy1);
-        R.hips.push(d0 <= d1 ? [cn[0], cn[1], cx0, cy0] : [cn[0], cn[1], cx1, cy1]);
+      var hw = (xR - xL) / 2, hd = (yB - yF) / 2, h = Math.min(hw, hd);
+      if (hw >= hd) { ridgeA = [xL + h, (yF + yB) / 2]; ridgeB = [xR - h, (yF + yB) / 2]; }
+      else { ridgeA = [(xL + xR) / 2, yF + h]; ridgeB = [(xL + xR) / 2, yB - h]; }
+      [[xL, yF, -1, -1], [xR, yF, 1, -1], [xR, yB, 1, 1], [xL, yB, -1, 1]].forEach(function (cn) {
+        var s = Math.min(cn[2] < 0 ? cn[0] - x0 : x1 - cn[0], cn[3] < 0 ? cn[1] - y0 : y1 - cn[1]);
+        var P0 = [cn[0] + cn[2] * s, cn[1] + cn[3] * s];
+        var dA = Math.hypot(cn[0] - ridgeA[0], cn[1] - ridgeA[1]), dB = Math.hypot(cn[0] - ridgeB[0], cn[1] - ridgeB[1]);
+        var E = dA <= dB ? ridgeA : ridgeB;
+        R.hips.push([P0[0], P0[1], E[0], E[1]]);
+        var plan = Math.hypot(E[0] - P0[0], E[1] - P0[1]);
+        add("Krokwie narożne", "b", Math.hypot(plan, R.z(E[0], E[1]) - R.z(P0[0], P0[1])), 1);
       });
-      add("Krokwie narożne", "b", h * Math.sqrt(2 + t * t), 4);
-      // krokwie z każdej okapowej krawędzi do kalenicy albo do krokwi narożnej
-      var eaves = [
-        { a: x0, b: x1, at: y0, dir: 1, horiz: true }, { a: x0, b: x1, at: y1, dir: -1, horiz: true },
-        { a: y0, b: y1, at: x0, dir: 1, horiz: false }, { a: y0, b: y1, at: x1, dir: -1, horiz: false }
-      ];
-      var common = 0;
-      eaves.forEach(function (e) {
-        var list = along(e.a, e.b).slice(1, -1);
-        list.forEach(function (u) {
-          var run = Math.min(h, u - e.a, e.b - u);
-          if (run < 0.1) return;
-          if (run >= h - 1e-6) common++;
-          else add("Krokwie kulawe", "k", run / c, 1);
-          R.rafters.push(e.horiz ? [u, e.at, u, e.at + e.dir * run] : [e.at, u, e.at + e.dir * run, u]);
+    }
+    var ridgeLen = ridgeA ? Math.hypot(ridgeB[0] - ridgeA[0], ridgeB[1] - ridgeA[1]) : 0;
+    if (ridgeLen > 0.01) R.ridge = [ridgeA[0], ridgeA[1], ridgeB[0], ridgeB[1]];
+    R.rise = ridgeA ? R.z(ridgeA[0], ridgeA[1]) - base : t * (p.sDir === "back" || p.sDir === "front" ? yB - yF : xR - xL);
+
+    // krokwie: z każdej krawędzi okapu w górę połaci, do kalenicy, krokwi narożnej albo końca dachu
+    var raft = [];
+    planes.forEach(function (pl) {
+      var horiz = pl.edge[0][1] === pl.edge[1][1];
+      var list = along(horiz ? x0 : y0, horiz ? x1 : y1);
+      if (p.roof === "hip") list = list.slice(1, -1);
+      list.forEach(function (u) {
+        var P0 = horiz ? [u, pl.edge[0][1]] : [pl.edge[0][0], u];
+        var di = pl.d(P0[0], P0[1]);
+        if (planes.some(function (q) { return q !== pl && q.d(P0[0], P0[1]) < di - 1e-9; })) return;
+        var stop = horiz ? y1 - y0 : x1 - x0, kind = "end";
+        planes.forEach(function (q) {
+          if (q === pl) return;
+          var rate = 1 - (q.n[0] * pl.n[0] + q.n[1] * pl.n[1]);
+          if (rate <= 1e-9) return;
+          var sq = (q.d(P0[0], P0[1]) - di) / rate;
+          if (sq < stop - 1e-9) { stop = sq; kind = rate > 1.5 ? "ridge" : "hip"; }
         });
+        if (stop < 0.1) return;
+        var Q = [P0[0] + pl.n[0] * stop, P0[1] + pl.n[1] * stop];
+        R.rafters.push([P0[0], P0[1], Q[0], Q[1]]);
+        raft.push({ plane: pl.name, len: stop / c, kind: kind });
       });
-      add("Krokwie zwykłe", "k", h / c, common);
-      frontBack(p.A, false);
-      add("Oczep boczny", "b", p.B + Ep, 2);
-      free = Math.min(p.B + Ep, p.A) / 2;
-      R.rise = (free - p.s / 2) * t;
-      R.d = function (x, y) { return Math.min(x - x0, x1 - x, y - y0, y1 - y) - o + p.s / 2; };
-      var c0 = [x0, y0], c1 = [x1, y0], c2 = [x1, y1], c3 = [x0, y1], e0 = [cx0, cy0], e1 = [cx1, cy1];
-      R.planes = ridgeX
-        ? [[c0, c1, e1, e0], [c1, c2, e1], [c2, c3, e0, e1], [c3, c0, e0]]
-        : [[c0, c1, e0], [c1, c2, e1, e0], [c2, c3, e1], [c3, c0, e0, e1]];
+    });
+    if (p.roof === "hip") {
+      raft.forEach(function (rf) { add(rf.kind === "hip" ? "Krokwie kulawe" : "Krokwie zwykłe", "k", rf.len, 1); });
+    } else {
+      var lens = {};
+      raft.forEach(function (rf) { lens[rf.plane] = Math.max(lens[rf.plane] || 0, rf.len); });
+      var vals = Object.keys(lens).map(function (k) { return lens[k]; });
+      var same = vals.every(function (v) { return Math.abs(v - vals[0]) < 0.005; });
+      raft.forEach(function (rf) { add(same || p.roof === "mono" ? "Krokwie" : "Krokwie – połać " + rf.plane, "k", rf.len, 1); });
     }
 
-    R.base = p.ph + p.bh;   // spód krokwi nad linią oczepu
-    R.z = function (x, y) { return R.base + t * R.d(x, y); };
-    R.heightAt = heightAt;
+    // oczepy: follow = górą równo z połacią (podpierają krokwie), inaczej poziomo na wysokości okapu
+    function beam(name, ax, ay, bx, by, follow) {
+      var za = follow ? R.z(clampX(ax), clampY(ay)) : base, zb = follow ? R.z(clampX(bx), clampY(by)) : base;
+      R.beams.push({ a: [ax, ay], b: [bx, by], za: za, zb: zb, follow: follow });
+      add(name, "b", Math.hypot(Math.hypot(bx - ax, by - ay), zb - za), 1);
+    }
+    var fName = Ep > 0 ? "Oczep przedni (na słupkach daszka)" : "Oczep przedni";
+    if (p.roof === "gable" && p.rDir === "par") {
+      beam(fName, x0, yF, x1, yF, true); beam("Oczep tylny", x0, yB, x1, yB, true);
+      beam("Oczep boczny (szczyt)", xL, -Ep, xL, p.B, false); beam("Oczep boczny (szczyt)", xR, -Ep, xR, p.B, false);
+      if (Ep > 0) beam("Belka nad frontem altany", 0, yW, p.A, yW, true);
+    } else if (p.roof === "gable") {
+      beam("Oczep boczny (pod krokwiami)", xL, y0, xL, y1, true); beam("Oczep boczny (pod krokwiami)", xR, y0, xR, y1, true);
+      beam(Ep > 0 ? "Oczep przedni (szczyt, na słupkach daszka)" : "Oczep przedni (szczyt)", 0, yF, p.A, yF, false);
+      beam("Oczep tylny (szczyt)", 0, yB, p.A, yB, false);
+      if (Ep > 0) beam("Belka nad frontem altany", 0, yW, p.A, yW, false);
+    } else if (p.roof === "mono" && (p.sDir === "back" || p.sDir === "front")) {
+      beam(fName, x0, yF, x1, yF, true); beam("Oczep tylny", x0, yB, x1, yB, true);
+      beam("Oczep boczny (po skosie)", xL, -Ep, xL, p.B, true); beam("Oczep boczny (po skosie)", xR, -Ep, xR, p.B, true);
+      if (Ep > 0) beam("Belka nad frontem altany", 0, yW, p.A, yW, true);
+    } else if (p.roof === "mono") {
+      beam("Oczep boczny (pod krokwiami)", xL, y0, xL, y1, true); beam("Oczep boczny (pod krokwiami)", xR, y0, xR, y1, true);
+      beam(fName + " (po skosie)", 0, yF, p.A, yF, true); beam("Oczep tylny (po skosie)", 0, yB, p.A, yB, true);
+      if (Ep > 0) beam("Belka nad frontem altany (po skosie)", 0, yW, p.A, yW, true);
+    } else {
+      beam(fName, 0, yF, p.A, yF, true); beam("Oczep tylny", 0, yB, p.A, yB, true);
+      beam("Oczep boczny", xL, -Ep, xL, p.B, true); beam("Oczep boczny", xR, -Ep, xR, p.B, true);
+      if (Ep > 0) beam("Belka nad frontem altany", 0, yW, p.A, yW, true);
+    }
 
-    // słupki: wysokość od kotwy do spodu oczepu
-    pts.forEach(function (q) { add("Słupki", "s", heightAt(q), 1); });
-    R.hasTallPosts = pts.some(function (q) { return heightAt(q) > p.ph + 0.005; });
+    // kalenica: płatew na słupkach albo deska kalenicowa z jętkami
+    var halfRun = 0;
+    if (p.roof === "gable") halfRun = p.rDir === "par" ? (yB - yF) / 2 : (xR - xL) / 2;
+    if (R.ridge) {
+      if (p.roof === "gable" && !p.ridge) {
+        R.ridgeKind = "board";
+        add("Deska kalenicowa", "d", ridgeLen, 1);
+        var pairs = raft.filter(function (rf) { return rf.plane === planes[0].name; }).length;
+        add("Jętki", "k", 2 * halfRun / 3 + 0.2, pairs);
+        // jętki do widoku 3D: poziomo na 2/3 wysokości, przy każdej parze krokwi
+        R.collars = [];
+        var off = halfRun / 3 + 0.1, mid = p.rDir === "par" ? ridgeA[1] : ridgeA[0];
+        R.rafters.forEach(function (a) {
+          if (p.rDir === "par" && a[1] === y0) R.collars.push([a[0], mid - off, a[0], mid + off]);
+          if (p.rDir === "perp" && a[0] === x0) R.collars.push([mid - off, a[1], mid + off, a[1]]);
+        });
+      } else {
+        R.ridgeKind = "beam";
+        add("Płatew kalenicowa", "b", ridgeLen, 1);
+      }
+    }
 
-    // kolejność: krokwie, belki, słupki; ten sam element od najdłuższego
-    var ord = { k: 0, b: 1, s: 2 };
-    R.els.forEach(function (e, i) { e.i = i; });
+    // deski czołowe na okapach i wiatrownice na szczytach
+    function board(name, a, b, kind) {
+      R.boards.push({ a: a, b: b, kind: kind });
+      add(name, "d", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
+    }
+    planes.forEach(function (pl) { board("Deska czołowa (okapowa)", pl.edge[0], pl.edge[1], "fascia"); });
+    var edges = { front: PL.front.edge, back: PL.back.edge, left: PL.left.edge, right: PL.right.edge };
+    Object.keys(edges).forEach(function (k) {
+      if (keys.indexOf(k) >= 0 || p.roof === "hip") return;
+      var e = edges[k];
+      // wiatrownica idzie po krawędzi szczytu; przy dachu dwuspadowym łamie się na kalenicy
+      if (p.roof === "gable") {
+        var mid = p.rDir === "par" ? [e[0][0], ridgeA[1]] : [ridgeA[0], e[0][1]];
+        board("Wiatrownica", e[0], mid, "verge"); board("Wiatrownica", e[1], mid, "verge");
+      } else if ((k === "front" && keys[0] === "back") || (k === "back" && keys[0] === "front") || (k === "left" && keys[0] === "right") || (k === "right" && keys[0] === "left")) {
+        board("Deska czołowa (górna krawędź)", e[0], e[1], "fascia");
+      } else board("Wiatrownica", e[0], e[1], "verge");
+    });
+
+    // słupki: wysokość od kotwy do spodu oczepu albo płatwi
+    var followLines = R.beams.filter(function (b) { return b.follow; });
+    function onBeam(q, b) {
+      if (Math.abs(b.a[0] - b.b[0]) < 1e-9) return Math.abs(q.ax - b.a[0]) < 1e-6 && q.ay >= Math.min(b.a[1], b.b[1]) - 1e-6 && q.ay <= Math.max(b.a[1], b.b[1]) + 1e-6;
+      return Math.abs(q.ay - b.a[1]) < 1e-6 && q.ax >= Math.min(b.a[0], b.b[0]) - 1e-6 && q.ax <= Math.max(b.a[0], b.b[0]) + 1e-6;
+    }
+    R.heightAt = function (q) {
+      if (q.wall === "drewutnia") return p.wH;
+      if (q.ridge && R.ridgeKind === "beam") return R.z(q.ax, q.ay) - p.bh;
+      if (followLines.some(function (b) { return onBeam(q, b); })) return R.z(clampX(q.ax), clampY(q.ay)) - p.bh;
+      return p.ph;
+    };
+    pts.forEach(function (q) { add("Słupki", "s", R.heightAt(q), 1); });
+    if (p.roof === "mono") R.arrow = p.sDir;
+
+    // kolejność: krokwie, belki, deski, słupki; ten sam element od najdłuższego
+    var ord = { k: 0, b: 1, d: 2, s: 3 };
+    var first = { "Krokwie zwykłe": -2, "Krokwie kulawe": -1 };
+    R.els.forEach(function (e, i) { if (!(e.name in first)) first[e.name] = i; });
     R.els.sort(function (a, b) {
       if (a.sec !== b.sec) return ord[a.sec] - ord[b.sec];
-      if (a.name !== b.name) return a.i - b.i;
+      if (a.name !== b.name) return first[a.name] - first[b.name];
       return b.len - a.len;
     });
 
-    // orientacyjne sprawdzenie rozpiętości
-    var kMax = p.kh * 25;                    // krokiew 15 cm → ok. 3,75 m
+    // orientacyjne sprawdzenie rozpiętości krokwi między podporami
+    var free;
+    if (p.roof === "mono") {
+      var sup = (p.sDir === "back" || p.sDir === "front") ? [yF, yB].concat(Ep > 0 ? [yW] : []) : [xL, xR];
+      sup.sort(function (a, b) { return a - b; });
+      free = 0; for (var i = 0; i < sup.length - 1; i++) free = Math.max(free, sup[i + 1] - sup[i]);
+    } else if (p.roof === "gable") {
+      free = halfRun;
+      if (p.rDir === "par" && Ep > 0) free = Math.max(yW - yF, (yF + yB) / 2 - yW);
+    } else free = Math.min(xR - xL, yB - yF) / 2;
+    var kMax = p.kh * 25;
     if (free / c > kMax) warn.push("Krokwie mają ok. " + f(free / c, 2) + " m między podporami. Przy wysokości " + fcm(p.kh) + " cm to za dużo (orientacyjnie do " + f(kMax, 2) + " m). Daj wyższe krokwie, słupki pod kalenicę albo płatew pośrednią.");
-    var bMax = p.bh * 15;                    // belka 14 cm → ok. 2,1 m między słupkami
+    var bMax = p.bh * 17;                    // belka 12 cm → ok. 2 m między słupkami
     if (maxPostSpan > bMax + 1e-6) warn.push("Oczep ma przęsła do " + fcm(maxPostSpan) + " cm. Przy belce wysokości " + fcm(p.bh) + " cm zmniejsz rozstaw słupków albo daj wyższą belkę (orientacyjnie do " + fcm(bMax) + " cm).");
     if (Ep === 0 && p.ext > 1.2) warn.push("Daszek wysunięty o " + fcm(p.ext) + " cm bez słupków to dużo. Powyżej ok. 120 cm lepiej postawić dodatkowe słupki.");
 
-    // podsumowanie przekrojów i zamówienie w długościach handlowych (3 cm na cięcie)
-    var secs = { k: { n: "Krokwie", b: p.kb, h: p.kh }, b: { n: "Belki", b: p.bb, h: p.bh }, s: { n: "Słupki", b: p.s, h: p.s } };
-    R.sum = ["k", "b", "s"].map(function (key) {
-      var items = [];
-      R.els.forEach(function (e) { if (e.sec === key) for (var i = 0; i < e.n; i++) items.push(e.len); });
-      var mb = items.reduce(function (a, b) { return a + b; }, 0);
-      items.sort(function (a, b) { return b - a; });
-      var bins = [], over = 0;
-      items.forEach(function (L) {
-        var need = L + 0.03;
-        if (need > p.stock + 1e-9) { over++; return; }
-        for (var i = 0; i < bins.length; i++) if (bins[i] >= need - 1e-9) { bins[i] -= need; return; }
-        bins.push(p.stock - need);
+    // zamówienie w tartaku: dokładne długości + zapas na docięcie, w górę do pełnych 10 cm
+    var secs = { k: { n: "Krokwie", b: p.kb, h: p.kh }, b: { n: "Belki", b: p.bb, h: p.bh }, d: { n: "Deski", b: p.db, h: p.dh }, s: { n: "Słupki", b: p.s, h: p.s } };
+    R.sum = ["k", "b", "d", "s"].map(function (key) {
+      var cnt = {}, mb = 0, n = 0;
+      R.els.forEach(function (e) {
+        if (e.sec !== key) return;
+        var L = Math.ceil((e.len + p.cut) * 10 - 1e-6) / 10;
+        cnt[L] = (cnt[L] || 0) + e.n; mb += L * e.n; n += e.n;
       });
-      return { key: key, name: secs[key].n, b: secs[key].b, h: secs[key].h, mb: mb, m3: mb * secs[key].b * secs[key].h, bins: bins.length, over: over, count: items.length };
+      var order = Object.keys(cnt).map(Number).sort(function (a, b) { return b - a; }).map(function (L) { return { len: L, n: cnt[L] }; });
+      return { key: key, name: secs[key].n, b: secs[key].b, h: secs[key].h, mb: mb, m3: mb * secs[key].b * secs[key].h, order: order, count: n };
     }).filter(function (x) { return x.count > 0; });
     return R;
   }
@@ -901,7 +955,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       oF: el("oF").checked, oB: el("oB").checked, oL: el("oL").checked, oR: el("oR").checked,
       roof: el("roof").value, ang: num("ang"), rDir: el("rDir").value, sDir: el("sDir").value,
       ov: num("ov") / 100, ext: num("ext") / 100, extSup: el("extSup").value, rs: num("rs") / 100, ph: num("ph") / 100,
-      kb: num("kb") / 100, kh: num("kh") / 100, bb: num("bb") / 100, bh: num("bh") / 100, stock: parseFloat(el("stock").value),
+      kb: num("kb") / 100, kh: num("kh") / 100, bb: num("bb") / 100, bh: num("bh") / 100, db: num("db") / 100, dh: num("dh") / 100, cut: num("cut") / 100,
       oLen: parseFloat(el("oLen").value) / 100, oT: num("oT") / 100, oLaw: el("oLaw").checked, oLW: num("oLW") / 100, oLH: num("oLH") / 100
     };
     var warn = [];
@@ -1197,7 +1251,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       }).join("");
       el("roofSum").innerHTML = R.sum.map(function (sm) {
         return row(sm.name + " " + fcm(sm.b) + " × " + fcm(sm.h) + " cm<small>" + f(sm.mb, 2) + " mb · " + f(sm.m3, 3) + " m³</small>",
-          sm.bins + " szt. po " + f(p.stock, 0) + " m" + (sm.over ? " + " + sm.over + " dłuższe na wymiar" : ""));
+          sm.order.map(function (o) { return o.n + " × " + fcm(o.len) + " cm"; }).join("<br>"));
       }).join("") + row("Drewno razem<small>do zamówienia w tartaku</small>", f(R.sum.reduce(function (a, x) { return a + x.m3; }, 0), 3) + " m³");
     }
 
@@ -1270,6 +1324,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var p = r.p;
     if (sec === "k") return fcm(p.kb) + " × " + fcm(p.kh);
     if (sec === "b") return fcm(p.bb) + " × " + fcm(p.bh);
+    if (sec === "d") return fcm(p.db) + " × " + fcm(p.dh);
     return fcm(p.s) + " × " + fcm(p.s);
   }
   function roofDesc(r) {
@@ -1524,7 +1579,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       L.push("");
       L.push("WIĘŹBA: " + roofDesc(r) + ", połać " + f(r.roof.area, 2) + " m²");
       r.roof.els.forEach(function (e) { L.push("  " + e.name + " " + secTxt(r, e.sec) + " cm: " + e.n + " × " + fcm(e.len) + " cm"); });
-      r.roof.sum.forEach(function (sm) { L.push("  Zamów " + sm.name.toLowerCase() + " " + fcm(sm.b) + "×" + fcm(sm.h) + ": " + sm.bins + " × " + f(p.stock, 0) + " m" + (sm.over ? " + " + sm.over + " na wymiar" : "") + " (" + f(sm.m3, 3) + " m³)"); });
+      L.push("  Zamówienie w tartaku (z zapasem " + fcm(p.cut) + " cm):");
+      r.roof.sum.forEach(function (sm) { L.push("  " + fcm(sm.b) + "×" + fcm(sm.h) + " " + sm.name.toLowerCase() + ": " + sm.order.map(function (o) { return o.n + " × " + fcm(o.len) + " cm"; }).join(", ") + " (" + f(sm.m3, 3) + " m³)"); });
       L.push("");
     }
     L.push("Kotwy: " + r.pts.length + " szt., beton na stopy: " + f(r.footV, 2) + " m³ (~" + r.footBags + " worków 25 kg)");
@@ -1643,7 +1699,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var cx = p.A / 2, cy = p.B / 2;
     function V(x, y, z) { return new THREE.Vector3(x - cx, z, cy - y); }
     function mat(color, extra) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.85, metalness: 0 }, extra || {})); }
-    var mPost = mat(0xb98a55), mBeam = mat(0xc49a63), mRaft = mat(0xd4ad78);
+    var mPost = mat(0xb98a55), mBeam = mat(0xc49a63), mRaft = mat(0xd4ad78), mBoard = mat(0xa8774a);
     function mesh(geo, m, shadow) { var o = new THREE.Mesh(geo, m); o.castShadow = shadow !== false; o.receiveShadow = true; G.add(o); return o; }
     // belka między dwoma punktami; spód belki na linii a–b
     function bar(a, b, w, h, m) {
@@ -1692,17 +1748,14 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       boxAt(q.ax - p.s / 2, q.ay - p.s / 2, q.ax + p.s / 2, q.ay + p.s / 2, 0, h, mPost);
     });
 
-    // oczepy po obwodzie i na linii daszka
-    function beamLine(x1, y1, x2, y2) {
-      var h1 = hAt({ ax: x1, ay: y1 }), h2 = hAt({ ax: x2, ay: y2 });
-      bar(V(x1, y1, h1), V(x2, y2, h2), p.bb, p.bh, mBeam);
-    }
+    // oczepy: z obliczeń dachu (górą równo z połacią) albo po obwodzie, gdy bez dachu
     var s2 = p.s / 2;
-    beamLine(0, s2, p.A, s2);
-    beamLine(0, p.B - s2, p.A, p.B - s2);
-    beamLine(s2, -r.Ep, s2, p.B);
-    beamLine(p.A - s2, -r.Ep, p.A - s2, p.B);
-    if (r.extLine) beamLine(0, r.extLine.y, p.A, r.extLine.y);
+    if (R) R.beams.forEach(function (b) { bar(V(b.a[0], b.a[1], b.za - p.bh), V(b.b[0], b.b[1], b.zb - p.bh), p.bb, p.bh, mBeam); });
+    else {
+      var bl = function (x1, y1, x2, y2) { bar(V(x1, y1, p.ph), V(x2, y2, p.ph), p.bb, p.bh, mBeam); };
+      bl(0, s2, p.A, s2); bl(0, p.B - s2, p.A, p.B - s2); bl(s2, -r.Ep, s2, p.B); bl(p.A - s2, -r.Ep, p.A - s2, p.B);
+      if (r.extLine) bl(0, r.extLine.y, p.A, r.extLine.y);
+    }
 
     // drzwi
     var dw = p.door ? r.walls[p.dWall] : null;
@@ -1760,9 +1813,18 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       R.hips.forEach(function (a) { bar(V(a[0], a[1], Z(a[0], a[1])), V(a[2], a[3], Z(a[2], a[3])), p.bb, p.bh, mBeam); });
       if (R.ridge) {
         var g = R.ridge, zr = Z(g[0], g[1]);
-        if (R.type === "gable" && !p.ridge) bar(V(g[0], g[1], zr), V(g[2], g[3], zr), p.kb, kh, mRaft);
+        if (R.ridgeKind === "board") bar(V(g[0], g[1], zr - 0.02), V(g[2], g[3], zr - 0.02), p.db, kh / R.c + 0.04, mBoard);
         else bar(V(g[0], g[1], zr - p.bh), V(g[2], g[3], zr - p.bh), p.bb, p.bh, mBeam);
       }
+      (R.collars || []).forEach(function (a) {
+        var zc = Z(a[0], a[1]);
+        bar(V(a[0], a[1], zc), V(a[2], a[3], zc), p.kb * 0.8, kh, mRaft);
+      });
+      // deska czołowa i wiatrownice: na końcach krokwi, górą równo z krokwią
+      R.boards.forEach(function (b) {
+        var top = kh / R.c;
+        bar(V(b.a[0], b.a[1], Z(b.a[0], b.a[1]) + top - p.dh), V(b.b[0], b.b[1], Z(b.b[0], b.b[1]) + top - p.dh), p.db, p.dh, mBoard);
+      });
       if (el("v3roof").checked) {
         var lift = kh / R.c + 0.025, pos = [];
         R.planes.forEach(function (poly) {
