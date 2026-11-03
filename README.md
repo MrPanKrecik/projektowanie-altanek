@@ -15,6 +15,9 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
   kratownicą: dodatkowe słupki, metry kratownicy i pojemność w metrach przestrzennych.
 - **Obrzeże** – metry bieżące wokół kostki na wybranych bokach, sztuki na każdy bok z docinkami
   (obrzeża 100, 75 lub 50 cm) i beton na ławę pod obrzeże.
+- **Dach i więźba** – dach jedno-, dwu- lub czterospadowy z okapem i daszkiem wysuniętym nad wejściem
+  (na wspornikach albo na dodatkowych słupkach): krokwie, krokwie narożne i kulawe, jętki, oczepy,
+  płatew kalenicowa, długości słupków, powierzchnia połaci, m³ drewna i zamówienie w długościach handlowych.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
 - **Rzut z góry** z wymiarami, instrukcja wytyczenia w terenie, lista zakupów do schowka i **eksport do PDF**.
 
