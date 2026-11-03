@@ -19,7 +19,7 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
   (na wspornikach albo na dodatkowych słupkach): krokwie, krokwie narożne i kulawe, jętki, oczepy, belki poprzeczne między słupkami,
   płatew kalenicowa, długości słupków, powierzchnia połaci, deski czołowe, łaty na szczytach, m³ drewna i zamówienie na wymiar do tartaku.
 - **Boazeria na dach** – liczba rzędów na każdej połaci, układ desek z łączeniami tylko na krokwiach
-  (na mijankę), dobór z dostępnych długości 0,7–5 m (także przy ograniczonej liczbie sztuk), lista zakupu
+  (na mijankę), zakup na wymiar (0,7–5 m) w pełnych paczkach albo z długości dostępnych w składzie, lista zakupu
   i plan cięcia z wykorzystaniem ścinków.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
 - **Wizualizacja 3D** – obracany model z kostką, obrzeżem, słupkami, drzwiami, drewutnią, więźbą

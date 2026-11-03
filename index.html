@@ -340,10 +340,17 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <span class="unit" data-u="cm"><input type="number" id="bzO" step="5" min="0" value="40"></span>
           </label>
         </div>
+        <label id="boazBox4">Długości boazerii
+          <select id="bzMode">
+            <option value="any">Na wymiar (0,7–5 m co 10 cm)</option>
+            <option value="list">Tylko długości dostępne w składzie</option>
+          </select>
+        </label>
         <label id="boazBox2">Dostępne długości
           <input type="text" id="bzL" value="5, 4, 3, 2.5, 2, 1.5, 1, 0.7" spellcheck="false" autocomplete="off">
         </label>
         <p class="hint" id="boazHint">Długości w metrach, po przecinku. Jeśli jakiejś długości jest mało, dopisz liczbę sztuk, np. <span class="mono">5x20, 4, 3, 2.5x60</span>.</p>
+        <p class="hint" id="boazHint2">Boazeria jest pakowana po ok. 1 m szerokości: 10 szt. przy 10 cm, 12 szt. przy 8 cm. Zakup liczę w pełnych paczkach.</p>
         <label class="check" id="boazBox3"><input type="checkbox" id="bzStag" checked> Łączenia na mijankę (co drugi rząd inaczej)</label>
       </fieldset>
 
@@ -576,7 +583,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <tbody id="boazCut"></tbody>
           </table>
         </div>
-        <p class="note">Łączenia wypadają zawsze na środku krokwi, a każdy kawałek leży na co najmniej dwóch krokwiach. Program sprawdza wszystkie możliwe miejsca łączeń w rzędzie i dobiera układ, przy którym kupujesz najmniej metrów desek. Ścinki z cięcia wykorzystuje w kolejnych rzędach. Długości desek nie mają zapasu na docięcie czół.</p>
+        <p class="note">Łączenia wypadają zawsze na środku krokwi, a każdy kawałek leży na co najmniej dwóch krokwiach. Program sprawdza wszystkie możliwe miejsca łączeń w rzędzie i dobiera układ, przy którym kupujesz najmniej metrów w pełnych paczkach. Na wymiar oznacza długości od 0,7 do 5 m co 10 cm. Ścinki z cięcia wykorzystuje w kolejnych rzędach. Długości nie mają zapasu na docięcie czół.</p>
       </section>
 
       <section class="card" id="woodCard" hidden>
@@ -617,10 +624,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 (function () {
   "use strict";
   var IDS = ["A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
-    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL",
+    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
   var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag"];
-  var KEY = "kalkulator-altanki-v8";
+  var KEY = "kalkulator-altanki-v9";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
   IDS.forEach(function (id) { defaults[id] = el(id).value; });
@@ -1098,16 +1105,33 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var bought = bins.reduce(function (a, b) { return a + b.len; }, 0);
     return { bins: bins, bought: bought, n: bins.length };
   }
-  function bestPack(pieces, stock) {
-    var a = packBoards(pieces, stock, false), b = packBoards(pieces, stock, true);
+  // zakup w pełnych paczkach: z każdej długości kupujesz wielokrotność pp sztuk
+  function withPacks(pk, pp) {
+    if (!pk) return null;
+    var by = {};
+    pk.bins.forEach(function (b) { by[b.len] = (by[b.len] || 0) + 1; });
+    pk.packs = Object.keys(by).map(Number).sort(function (a, b) { return b - a; }).map(function (L) {
+      var n = by[L], pk2 = Math.ceil(n / pp - 1e-9);
+      return { len: L, need: n, packs: pk2, pcs: pk2 * pp };
+    });
+    pk.cost = pk.packs.reduce(function (a, x) { return a + x.pcs * x.len; }, 0);
+    pk.nPacks = pk.packs.reduce(function (a, x) { return a + x.packs; }, 0);
+    return pk;
+  }
+  function bestPack(pieces, stock, pp) {
+    var a = withPacks(packBoards(pieces, stock, false), pp), b = withPacks(packBoards(pieces, stock, true), pp);
     if (!a) return b; if (!b) return a;
-    return (b.bought < a.bought - 1e-9 || (Math.abs(b.bought - a.bought) < 1e-9 && b.n < a.n)) ? b : a;
+    return (b.cost < a.cost - 1e-9 || (Math.abs(b.cost - a.cost) < 1e-9 && b.n < a.n)) ? b : a;
   }
   var bzCache = {};
   function boazCalc(r) {
     var p = r.p, R = r.roof;
     if (!R || !el("boaz").checked) return null;
-    var w = parseFloat(el("bzW").value) / 100, ov = num("bzO") / 100, stock = parseStock(el("bzL").value), stag = el("bzStag").checked;
+    var w = parseFloat(el("bzW").value) / 100, ov = num("bzO") / 100, stag = el("bzStag").checked;
+    var mode = el("bzMode").value, pp = w > 0.09 ? 10 : 12;   // sztuk w paczce (ok. 1 m szerokości)
+    var stock;
+    if (mode === "any") { stock = []; for (var sl = 7; sl <= 50; sl++) stock.push({ len: sl / 10, max: Infinity }); }
+    else stock = parseStock(el("bzL").value);
     if (!stock.length) return { err: "Wpisz dostępne długości boazerii, np. 5, 4, 3, 2.5." };
     var maxL = stock[stock.length - 1].len;
     // typy rzędów: rząd = położenie krokwi + długość
@@ -1133,7 +1157,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         totalM2 += row.L * w;
       }
     });
-    var key = JSON.stringify([Object.keys(types).map(function (k) { return k + "#" + types[k].n; }), stock, stag]);
+    var key = JSON.stringify([Object.keys(types).map(function (k) { return k + "#" + types[k].n; }), stock, stag, pp]);
     if (bzCache.key === key) return bzCache.val;
 
     var warnTxt = [];
@@ -1159,10 +1183,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var pcs = [];
         for (var a = 0; a < nA; a++) pcs = pcs.concat(A.pcs);
         for (var b = 0; b < nB; b++) pcs = pcs.concat(B.pcs);
-        var pk = bestPack(pcs, stock);
+        var pk = bestPack(pcs, stock, pp);
         if (!pk) continue;
-        // mijanka: przy tej samej ilości metrów wygrywa układ bez wspólnych łączeń
-        var score = pk.bought + (stag && !stagOk ? pk.bought * 0.06 : 0) + pk.n * 0.001;
+        // mijanka: przy podobnej ilości metrów wygrywa układ bez wspólnych łączeń
+        var score = pk.cost + (stag && !stagOk ? pk.cost * 0.06 : 0) + pk.bought * 0.01 + pk.n * 0.001;
         if (!best || score < best.score - 1e-9) best = { A: A, B: B, nA: nA, nB: nB, score: score, stagOk: stagOk };
       }
       if (!best) { warnTxt.push("Z podanych ilości desek nie da się pokryć rzędów długości " + fcm(T.row.L) + " cm. Zwiększ liczbę sztuk albo dodaj inne długości."); return; }
@@ -1173,12 +1197,16 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       for (var a = 0; a < pl.nA; a++) allPieces = allPieces.concat(pl.A.pcs);
       for (var b = 0; b < pl.nB; b++) allPieces = allPieces.concat(pl.B.pcs);
     });
-    var pk = allPieces.length ? bestPack(allPieces, stock) : null;
+    var pk = allPieces.length ? bestPack(allPieces, stock, pp) : null;
     if (allPieces.length && !pk) warnTxt.push("Podanych sztuk desek nie starcza na cały dach. Zwiększ liczbę sztuk albo dodaj inne długości.");
-    var val = { w: w, ov: ov, stock: stock, plan: plan, pack: pk, m2: totalM2, rows: rowsPerPlane, warn: warnTxt,
+    var val = { w: w, ov: ov, stock: stock, pp: pp, mode: mode, plan: plan, pack: pk, m2: totalM2, rows: rowsPerPlane, warn: warnTxt,
       need: allPieces.reduce(function (a, b) { return a + b; }, 0) };
     bzCache = { key: key, val: val };
     return val;
+  }
+  function plural(n, one, few, many) {
+    var d = n % 10, dd = n % 100;
+    return n + " " + (n === 1 ? one : (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) ? few : many);
   }
   function rzedy(n) {
     var d = n % 10, dd = n % 100;
@@ -1215,14 +1243,16 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       html += '<div class="bz-row"><span class="lab">Rząd ' + fcm(pl.row.L) + ' cm' + (pl.n > 1 ? ", " + rzedy(pl.n) : "") + (same ? "" : " · układ A (" + rzedy(pl.nA) + ")") + ': ' + pl.A.pcs.map(fcm).join(" + ") + ' cm</span>' + rowSvg(pl.row, pl.A, false) + '</div>';
       if (!same && pl.nB) html += '<div class="bz-row"><span class="lab">Układ B (' + rzedy(pl.nB) + ', na zmianę z A): ' + pl.B.pcs.map(fcm).join(" + ") + ' cm</span>' + rowSvg(pl.row, pl.B, true) + '</div>';
     });
-    if (B.plan.length > shown.length) html += '<p class="note">Pozostałe ' + rzedy(B.plan.length - shown.length) + ' przy narożach ma inne długości i są w rozkroju poniżej.</p>';
+    if (B.plan.length > shown.length) html += '<p class="note">Pozostałe rzędy przy narożach (' + rzedy(B.plan.length - shown.length) + ') mają różne długości. Są ujęte w zakupie i rozkroju poniżej.</p>';
     el("boazRows").innerHTML = html;
     if (B.pack) {
-      var by = {};
-      B.pack.bins.forEach(function (b) { by[b.len] = (by[b.len] || 0) + 1; });
-      var buy = Object.keys(by).map(Number).sort(function (a, b) { return b - a; });
-      el("boazBuy").innerHTML = buy.map(function (L) { return row("Deski " + f(L, L % 1 ? 1 : 0) + " m", by[L] + " szt. · " + f(by[L] * L, 1) + " mb"); }).join("") +
-        row("Razem do kupienia<small>odpad " + f((1 - B.need / B.pack.bought) * 100, 1) + "%</small>", B.pack.n + " szt. · " + f(B.pack.bought, 1) + " mb · " + f(B.pack.bought * B.w, 2) + " m²");
+      var left = B.pack.packs.reduce(function (a, x) { return a + x.pcs - x.need; }, 0);
+      el("boazBuy").innerHTML = B.pack.packs.map(function (x) {
+        return row("Boazeria " + f(x.len, 1) + " m<small>potrzeba " + x.need + " szt." + (x.pcs > x.need ? ", zostanie " + (x.pcs - x.need) : "") + "</small>",
+          plural(x.packs, "paczka", "paczki", "paczek") + " · " + x.pcs + " szt.");
+      }).join("") +
+        row("Razem do kupienia<small>odpad z cięcia " + f((1 - B.need / B.pack.bought) * 100, 1) + "%" + (left ? ", w paczkach zostanie " + plural(left, "deska", "deski", "desek") : "") + "</small>",
+          plural(B.pack.nPacks, "paczka", "paczki", "paczek") + " · " + f(B.pack.cost, 1) + " mb · " + f(B.pack.cost * B.w, 2) + " m²");
       var pat = {};
       B.pack.bins.forEach(function (b) {
         var cuts = b.cuts.slice().sort(function (x, y) { return y - x; });
@@ -1483,7 +1513,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("ridgeWrap").hidden = rf === "mono" || rf === "hip";
     el("tiesWrap").hidden = !rOn;
     el("boazFs").hidden = !rOn;
-    ["boazBox1", "boazBox2", "boazHint", "boazBox3"].forEach(function (id) { el(id).hidden = !el("boaz").checked; });
+    ["boazBox1", "boazBox4", "boazHint2", "boazBox3"].forEach(function (id) { el(id).hidden = !el("boaz").checked; });
+    ["boazBox2", "boazHint"].forEach(function (id) { el(id).hidden = !el("boaz").checked || el("bzMode").value !== "list"; });
     el("jetkiWrap").hidden = rf !== "gable" || el("ridge").checked;
     el("ridgeTxt").textContent = rf === "none" ? "Słupek na środku krótszych ścian (pod kalenicę)" : "Płatew i słupki pod kalenicą (zwykle niepotrzebne)";
     var wOn = el("wood").checked;
@@ -1887,9 +1918,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       r.roof.els.forEach(function (e) { L.push("  " + e.name + " " + secTxt(r, e.sec) + " cm: " + e.n + " × " + fcm(e.len) + " cm"); });
       var Bz = boazCalc(r);
       if (Bz && Bz.pack) {
-        var byL = {};
-        Bz.pack.bins.forEach(function (b) { byL[b.len] = (byL[b.len] || 0) + 1; });
-        L.push("  Boazeria " + fcm(Bz.w) + " cm: " + Object.keys(byL).map(Number).sort(function (a, b) { return b - a; }).map(function (k) { return byL[k] + " × " + f(k, k % 1 ? 1 : 0) + " m"; }).join(", ") + " (" + f(Bz.pack.bought, 1) + " mb, " + f(Bz.m2, 2) + " m² krycia)");
+        L.push("  Boazeria " + fcm(Bz.w) + " cm (paczka " + Bz.pp + " szt.): " + Bz.pack.packs.map(function (x) { return f(x.len, 1) + " m – " + x.packs + " pacz. (" + x.pcs + " szt.)"; }).join(", ") + "; razem " + f(Bz.pack.cost, 1) + " mb, " + f(Bz.m2, 2) + " m² krycia");
       }
       L.push("  Zamówienie w tartaku (z zapasem " + fcm(p.cut) + " cm):");
       r.roof.sum.forEach(function (sm) { L.push("  " + fcm(sm.b) + "×" + fcm(sm.h) + " " + sm.name.toLowerCase() + ": " + sm.order.map(function (o) { return o.n + " × " + fcm(o.len) + " cm"; }).join(", ") + " (" + f(sm.m3, 3) + " m³)"); });
