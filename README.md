@@ -17,7 +17,7 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
   (obrzeża 100, 75 lub 50 cm) i beton na ławę pod obrzeże.
 - **Dach i więźba** – dach jedno-, dwu- lub czterospadowy z okapem i daszkiem wysuniętym nad wejściem
   (na wspornikach albo na dodatkowych słupkach): krokwie, krokwie narożne i kulawe, jętki, oczepy,
-  płatew kalenicowa, długości słupków, powierzchnia połaci, deski czołowe i wiatrownice, m³ drewna i zamówienie na wymiar do tartaku.
+  płatew kalenicowa, długości słupków, powierzchnia połaci, deski czołowe, łaty na szczytach, m³ drewna i zamówienie na wymiar do tartaku.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
 - **Wizualizacja 3D** – obracany model z kostką, obrzeżem, słupkami, drzwiami, drewutnią, więźbą
   i pokryciem dachu (pokrycie można schować, żeby zobaczyć krokwie).
