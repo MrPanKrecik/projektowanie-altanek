@@ -946,6 +946,18 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       return { name: pl.name, horiz: horiz, n: pl.n, edge: horiz ? pl.edge[0][1] : pl.edge[0][0], poly: pl.poly, rafts: pl.rafts.slice().sort(function (a, b) { return a.u - b.u; }) };
     });
 
+    // belka nad drewutnią: na linii jej słupków, na wysokości oczepu
+    var wl = pts.filter(function (q) { return q.wall === "drewutnia"; }), woodBeam = null;
+    if (wl.length) {
+      var horizW = wl.every(function (q) { return Math.abs(q.ay - wl[0].ay) < 1e-6; });
+      var cW = horizW ? wl[0].ay : wl[0].ax;
+      var onW = pts.filter(function (q) { return q.wood && Math.abs((horizW ? q.ay : q.ax) - cW) < 1e-6; }).map(function (q) { return horizW ? q.ax : q.ay; });
+      var lo = Math.min.apply(null, onW) - s2, hi = Math.max.apply(null, onW) + s2;
+      if (horizW) beam("Belka nad drewutnią", lo, cW, hi, cW, p.roof === "mono");
+      else beam("Belka nad drewutnią", cW, lo, cW, hi, p.roof === "mono");
+      woodBeam = { alongX: horizW, at: cW };
+    }
+
     // belki poprzeczne: od każdego słupka ściany okapowej na drugą stronę, na wysokości oczepu
     R.ties = [];
     if (p.ties) {
@@ -959,11 +971,13 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         if (!lines.some(function (v) { return Math.abs((alongX ? q.ay : q.ax) - v) < 1e-6; })) return;
         var u = alongX ? q.ax : q.ay;
         if (ends.some(function (v) { return Math.abs(u - v) < p.s; })) return;
+        if (woodBeam && woodBeam.alongX === !alongX && Math.abs(u - woodBeam.at) < p.s) return;   // tu już leży belka nad drewutnią
         if (!us.some(function (v) { return Math.abs(v - u) < p.s; })) us.push(u);
       });
       us.sort(function (a, b) { return a - b; }).forEach(function (u) {
-        if (alongX) beam("Belka poprzeczna", u, -Ep, u, p.B, true);
-        else beam("Belka poprzeczna", 0, u, p.A, u, true);
+        // poziomo na wysokości oczepu; po skosie tylko przy dachu jednospadowym
+        if (alongX) beam("Belka poprzeczna", u, -Ep, u, p.B, p.roof === "mono");
+        else beam("Belka poprzeczna", 0, u, p.A, u, p.roof === "mono");
         var bm = R.beams[R.beams.length - 1];
         R.ties.push([bm.a[0], bm.a[1], bm.b[0], bm.b[1]]);
       });
@@ -1020,7 +1034,6 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       return Math.abs(q.ay - b.a[1]) < 1e-6 && q.ax >= Math.min(b.a[0], b.b[0]) - 1e-6 && q.ax <= Math.max(b.a[0], b.b[0]) + 1e-6;
     }
     R.heightAt = function (q) {
-      if (q.wall === "drewutnia") return p.wH;
       if (q.ridge && R.ridgeKind === "beam") return R.z(q.ax, q.ay) - p.bh;
       if (followLines.some(function (b) { return onBeam(q, b); })) return R.z(clampX(q.ax), clampY(q.ay)) - p.bh;
       return p.ph;
@@ -2116,7 +2129,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     // słupki
     var hAt = R ? R.heightAt : function () { return p.ph; };
     r.pts.forEach(function (q) {
-      var h = q.wall === "drewutnia" ? p.wH : hAt(q);
+      var h = hAt(q);
       boxAt(q.ax - p.s / 2, q.ay - p.s / 2, q.ax + p.s / 2, q.ay + p.s / 2, 0, h, mPost);
     });
 
@@ -2159,9 +2172,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       face(w.u1, Dd, w.u2, Dd);
       if (w.mode === "in") face(w.u1, 0, w.u2, 0);
       if (w.mode === "out" || !p.wFull) { face(w.u1, 0, w.u1, Dd); face(w.u2, 0, w.u2, Dd); }
-      if (r.woodLine) {
+      if (r.woodLine && !R) {
         var f1 = pt(p, w.wall, r.woodLine.pos[0].u, w.t), f2 = pt(p, w.wall, r.woodLine.pos[r.woodLine.pos.length - 1].u, w.t);
-        bar(V(f1.x, f1.y, p.wH), V(f2.x, f2.y, p.wH), p.bb * 0.7, p.bh * 0.7, mBeam);
+        bar(V(f1.x, f1.y, p.ph), V(f2.x, f2.y, p.ph), p.bb, p.bh, mBeam);
       }
       var logs = canvasTex(256, 256, function (g, W, H) {
         g.fillStyle = "#6b4a2b"; g.fillRect(0, 0, W, H);
