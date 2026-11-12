@@ -3205,7 +3205,7 @@ tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight
   function orderTSV(sep) {
     var r = compute(); if (r.bad) return "";
     r.roof && (r.boaz = boazCalc(r)); r.cover = r.roof ? coverCalc(r) : null; r.wallC = wallCalc(r);
-    var q = function (v) { v = String(v).replace(/<[^>]+>/g, ""); return sep === "," ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var q = function (v) { v = String(v).replace(/<[^>]+>/g, ""); return sep === "\t" ? v : '"' + v.replace(/"/g, '""') + '"'; };
     var out = [["Dział", "Materiał", "Wymiar", "Ilość", "Uwagi"].map(q).join(sep)], c = "";
     orderRows(r).forEach(function (x) { if (x.cat) { c = x.cat; return; } out.push([c, x.name, x.dim, x.qty, x.note].map(q).join(sep)); });
     return (projName() ? projName() + "\n" : "") + out.join("\n");
@@ -3217,7 +3217,7 @@ tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight
   });
   el("orderCsv").addEventListener("click", function () {
     var n = (projName() || "altana").replace(/[^\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]+/g, "").trim().replace(/\s+/g, "-");
-    saveFile(n + "-zamowienie.csv", "﻿" + orderTSV(",")).then(function (res) { el("orderMsg").textContent = res === "saved" ? "Zapisano plik CSV." : SAVE_MSG[res]; });
+    saveFile(n + "-zamowienie.csv", "﻿" + orderTSV(";")).then(function (res) { el("orderMsg").textContent = res === "saved" ? "Zapisano plik CSV." : SAVE_MSG[res]; });
   });
 
   // ---------- eksport do PDF ----------
