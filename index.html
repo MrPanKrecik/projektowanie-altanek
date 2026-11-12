@@ -357,6 +357,36 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         </div>
       </fieldset>
 
+      <fieldset id="coverFs">
+        <legend><i style="background:var(--roof)"></i>Pokrycie dachu</legend>
+        <label>Rodzaj pokrycia
+          <select id="cvType">
+            <option value="gont">Gont bitumiczny</option>
+            <option value="blacha">Blacha w arkuszach</option>
+            <option value="none">Nie licz pokrycia</option>
+          </select>
+        </label>
+        <div class="row" id="cvGont">
+          <label>Paczka gontu
+            <span class="unit" data-u="m²"><input type="number" id="cvPack" step="0.1" min="0.5" value="3"></span>
+          </label>
+          <label>Zapas na docinki
+            <span class="unit" data-u="%"><input type="number" id="cvWaste" step="1" min="0" value="10"></span>
+          </label>
+        </div>
+        <div class="row" id="cvBlacha">
+          <label>Szerokość krycia arkusza
+            <span class="unit" data-u="cm"><input type="number" id="cvW" step="1" min="30" value="100"></span>
+          </label>
+          <label>Wkręty na m²
+            <span class="unit" data-u="szt."><input type="number" id="cvScr" step="1" min="1" value="8"></span>
+          </label>
+        </div>
+        <label id="cvRollWrap">Rolka podkładu (papa / membrana)
+          <span class="unit" data-u="m²"><input type="number" id="cvRoll" step="1" min="1" value="15"></span>
+        </label>
+      </fieldset>
+
       <fieldset id="boazFs">
         <legend><i style="background:var(--timber)"></i>Boazeria na dach</legend>
         <label class="check"><input type="checkbox" id="boaz" checked> Licz boazerię na krokwie</label>
@@ -618,6 +648,18 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <p class="note">Łączenia wypadają zawsze na środku krokwi, a każdy kawałek leży na co najmniej dwóch krokwiach. Program sprawdza wszystkie możliwe miejsca łączeń w rzędzie i dobiera układ, przy którym kupujesz najmniej metrów w pełnych paczkach. Na wymiar oznacza długości od 0,7 do 5 m co 10 cm. Ścinki z cięcia wykorzystuje w kolejnych rzędach. Długości nie mają zapasu na docięcie czół.</p>
       </section>
 
+      <section class="card" id="coverCard" hidden>
+        <h2>Pokrycie dachu <span class="tag" id="coverTag"></span></h2>
+        <dl class="mat" id="coverMat"></dl>
+        <div class="tbl-wrap" id="coverTblWrap">
+          <table>
+            <thead><tr><th>Połać</th><th>Arkusze</th><th>Długość</th><th>Szt.</th></tr></thead>
+            <tbody id="coverTbl"></tbody>
+          </table>
+        </div>
+        <p class="note" id="coverNote"></p>
+      </section>
+
       <section class="card" id="woodCard" hidden>
         <h2>Drewutnia <span class="tag">kratownica i pojemność</span></h2>
         <dl class="mat" id="woodMat"></dl>
@@ -656,7 +698,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 (function () {
   "use strict";
   var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
-    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode",
+    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "cvType", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
   var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft"];
   var KEY = "kalkulator-altanki-v9";
@@ -1036,7 +1078,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     R.RW = cover.x1 - cover.x0; R.RD = cover.y1 - cover.y0;
     R.area = R.RW * R.RD / c;
 
-    // deski czołowe na końcach krokwi i łaty na szczytach
+    R.planeData.forEach(function (pd) { pd.cpoly = pd.poly.map(stretch); pd.ceave = pd.horiz ? [stretch([x0, pd.edge])[0], stretch([x1, pd.edge])[0]] : [stretch([pd.edge, y0])[1], stretch([pd.edge, y1])[1]]; });
+    R.coverRidge = R.ridge ? [stretch([R.ridge[0], R.ridge[1]]), stretch([R.ridge[2], R.ridge[3]])] : null;
+
+    // deski czołowe na całą szerokość dachu i łaty na szczytach
     function board(name, a, b, kind) {
       R.boards.push({ a: a, b: b, kind: kind });
       add(name, "d", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
@@ -1050,7 +1095,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       R.vergeLen += Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1]));
       add("Łata na szczycie", "l", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
     }
-    planes.forEach(function (pl) { board("Deska czołowa (okapowa)", toRafts(pl.edge[0]), toRafts(pl.edge[1]), "fascia"); });
+    planes.forEach(function (pl) { board("Deska czołowa (okapowa)", stretch(pl.edge[0]), stretch(pl.edge[1]), "fascia"); });
     var edges = { front: PL.front.edge, back: PL.back.edge, left: PL.left.edge, right: PL.right.edge };
     Object.keys(edges).forEach(function (k) {
       if (keys.indexOf(k) >= 0 || p.roof === "hip") return;
@@ -1060,7 +1105,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var mid = p.rDir === "par" ? [e[0][0], ridgeA[1]] : [ridgeA[0], e[0][1]];
         lath(e[0], mid); lath(e[1], mid);
       } else if ((k === "front" && keys[0] === "back") || (k === "back" && keys[0] === "front") || (k === "left" && keys[0] === "right") || (k === "right" && keys[0] === "left")) {
-        board("Deska czołowa (górna krawędź)", toRafts(e[0]), toRafts(e[1]), "fascia");
+        board("Deska czołowa (górna krawędź)", stretch(e[0]), stretch(e[1]), "fascia");
       } else lath(e[0], e[1]);
     });
 
@@ -1119,6 +1164,89 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     return R;
   }
 
+
+
+  // ---------- pokrycie dachu: gont albo blacha ----------
+  // największa odległość od okapu do krawędzi połaci na linii prostopadłej do okapu (u = położenie wzdłuż okapu)
+  function runAt(pd, u) {
+    var poly = pd.cpoly, best = 0;
+    for (var i = 0; i < poly.length; i++) {
+      var a = poly[i], b = poly[(i + 1) % poly.length];
+      var ua = pd.horiz ? a[0] : a[1], ub = pd.horiz ? b[0] : b[1];
+      var va = pd.horiz ? a[1] : a[0], vb = pd.horiz ? b[1] : b[0];
+      if ((ua - u) * (ub - u) > 1e-12) continue;
+      var v = Math.abs(ub - ua) < 1e-9 ? Math.max(Math.abs(va - pd.edge), Math.abs(vb - pd.edge)) : Math.abs(va + (u - ua) / (ub - ua) * (vb - va) - pd.edge);
+      if (Math.abs(ub - ua) < 1e-9) best = Math.max(best, Math.abs(va - pd.edge), Math.abs(vb - pd.edge));
+      else best = Math.max(best, v);
+    }
+    return best;
+  }
+  function coverCalc(r) {
+    var R = r.roof, t = el("cvType").value;
+    if (!R || t === "none") return null;
+    var c = R.c, out = { type: t, area: R.area };
+    // okapnik: krawędzie okapów; gąsiory: kalenica i krokwie narożne (po skosie)
+    out.eave = R.planeData.reduce(function (a, pd) { return a + Math.abs(pd.ceave[1] - pd.ceave[0]); }, 0);
+    var ridge = R.coverRidge ? Math.hypot(R.coverRidge[1][0] - R.coverRidge[0][0], R.coverRidge[1][1] - R.coverRidge[0][1]) : 0;
+    var hips = R.hips.reduce(function (a, h) { return a + Math.hypot(Math.hypot(h[2] - h[0], h[3] - h[1]), R.z(h[2], h[3]) - R.z(h[0], h[1])); }, 0);
+    out.ridge = ridge; out.hips = hips;
+    var roll = num("cvRoll");
+    out.rolls = roll > 0 ? Math.ceil(out.area * 1.1 / roll - 1e-9) : 0;          // 10% na zakłady
+    if (t === "gont") {
+      var pack = num("cvPack"), waste = num("cvWaste") / 100;
+      out.packs = pack > 0 ? Math.ceil(out.area * (1 + waste) / pack - 1e-9) : 0;
+      out.packM2 = pack; out.waste = waste;
+      return out;
+    }
+    var w = num("cvW") / 100;
+    if (w < 0.3) return { type: t, err: "Podaj szerokość krycia arkusza blachy, np. 100 cm." };
+    out.w = w; out.sheets = [];
+    R.planeData.forEach(function (pd) {
+      var u0 = Math.min(pd.ceave[0], pd.ceave[1]), u1 = Math.max(pd.ceave[0], pd.ceave[1]);
+      var n = Math.ceil((u1 - u0) / w - 1e-6), lens = {};
+      for (var i = 0; i < n; i++) {
+        var a = u0 + i * w, b = Math.min(u1, a + w), run = Math.max(runAt(pd, a + 1e-6), runAt(pd, b - 1e-6));
+        pd.cpoly.forEach(function (q) { var u = pd.horiz ? q[0] : q[1]; if (u > a && u < b) run = Math.max(run, Math.abs((pd.horiz ? q[1] : q[0]) - pd.edge)); });
+        var L = Math.ceil(run / c * 100 - 1e-6) / 100;
+        if (L < 0.05) continue;
+        lens[L] = (lens[L] || 0) + 1;
+      }
+      Object.keys(lens).map(Number).sort(function (x, y) { return y - x; }).forEach(function (L) { out.sheets.push({ plane: pd.name, len: L, n: lens[L] }); });
+    });
+    out.nSheets = out.sheets.reduce(function (a, x) { return a + x.n; }, 0);
+    out.sheetM2 = out.sheets.reduce(function (a, x) { return a + x.n * x.len * w; }, 0);
+    out.screws = Math.ceil(out.area * num("cvScr") / 50) * 50;
+    return out;
+  }
+  function renderCover(r) {
+    var C = coverCalc(r);
+    el("coverCard").hidden = !C;
+    if (!C) return null;
+    if (C.err) { el("coverMat").innerHTML = row("Pokrycie", C.err); el("coverTblWrap").hidden = true; el("coverNote").textContent = ""; return C; }
+    var m = [row("Powierzchnia dachu<small>z okapami i wysunięciem na szczytach</small>", f(C.area, 2) + " m²")];
+    if (C.type === "gont") {
+      el("coverTag").textContent = "gont bitumiczny";
+      m.push(row("Gont bitumiczny<small>paczka " + f(C.packM2, 1) + " m², zapas " + f(C.waste * 100, 0) + "%</small>", plural(C.packs, "paczka", "paczki", "paczek")));
+      if (C.ridge + C.hips > 0) m.push(row("Gonty na kalenicę i narożniki<small>gąsiory, długość do pokrycia</small>", f(C.ridge + C.hips, 2) + " mb"));
+      m.push(row("Papa podkładowa<small>z zakładami 10%</small>", plural(C.rolls, "rolka", "rolki", "rolek")));
+      el("coverTblWrap").hidden = true;
+      el("coverNote").textContent = "Gont kładzie się na boazerii przykrytej papą podkładową. Na gąsiory wiele firm sprzedaje osobne gonty kalenicowe, a część ludzi tnie je ze zwykłych pasów. Wtedy dolicz około jednej paczki na każde 10–12 mb kalenicy.";
+    } else {
+      el("coverTag").textContent = "blacha, krycie " + fcm(C.w) + " cm";
+      m.push(row("Arkusze blachy<small>na wymiar, od okapu do kalenicy</small>", plural(C.nSheets, "arkusz", "arkusze", "arkuszy") + " · " + f(C.sheetM2, 2) + " m²"));
+      if (C.ridge + C.hips > 0) m.push(row("Gąsior / obróbka kalenicy<small>kalenica i narożniki</small>", f(C.ridge + C.hips, 2) + " mb"));
+      m.push(row("Wkręty farmerskie<small>ok. " + f(num("cvScr"), 0) + " na m²</small>", "ok. " + C.screws + " szt."));
+      m.push(row("Membrana / papa podkładowa<small>z zakładami 10%</small>", plural(C.rolls, "rolka", "rolki", "rolek")));
+      el("coverTblWrap").hidden = false;
+      el("coverTbl").innerHTML = C.sheets.map(function (x) { return "<tr><td class=\"l\">" + cap(x.plane) + "</td><td class=\"mono\">" + fcm(C.w) + " cm krycia</td><td class=\"mono\">" + fcm(x.len) + " cm</td><td class=\"mono\">" + x.n + "</td></tr>"; }).join("");
+      el("coverNote").textContent = "Arkusze liczone na wymiar, w pasach szerokości krycia od jednej krawędzi dachu. Przy dachu czterospadowym arkusze przy narożnikach mają długość dłuższego boku i docina się je po skosie na miejscu.";
+    }
+    m.push(row("Okapnik<small>krawędzie okapów</small>", f(C.eave, 2) + " mb"));
+    if (r.roof.type === "mono") m.push(row("Obróbka górnej krawędzi<small>wyższa krawędź dachu jednospadowego</small>", f(C.eave, 2) + " mb"));
+    if (r.roof.vergeLen > 0) m.push(row("Okucie boczne<small>obróbka szczytów</small>", f(r.roof.vergeLen, 2) + " mb"));
+    el("coverMat").innerHTML = m.join("");
+    return C;
+  }
 
   // ---------- boazeria na dach ----------
   function parseStock(txt) {
@@ -1605,6 +1733,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("ridgeWrap").hidden = rf === "mono" || rf === "hip";
     el("tiesWrap").hidden = !rOn;
     el("boazFs").hidden = !rOn;
+    el("coverFs").hidden = !rOn;
+    var cvT = el("cvType").value;
+    el("cvGont").hidden = cvT !== "gont"; el("cvBlacha").hidden = cvT !== "blacha"; el("cvRollWrap").hidden = cvT === "none";
     ["boazBox1", "boazBox4", "boazHint2", "boazBox3"].forEach(function (id) { el(id).hidden = !el("boaz").checked; });
     ["boazBox2", "boazHint"].forEach(function (id) { el(id).hidden = !el("boaz").checked || el("bzMode").value !== "list"; });
     el("jetkiWrap").hidden = rf !== "gable" || el("ridge").checked;
@@ -1620,7 +1751,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("warn").innerHTML = r.warn.map(function (w) { return "<div>" + w + "</div>"; }).join("");
     if (r.bad) {
       ["stats", "plan", "mat", "posts", "tbl", "steps", "woodMat", "roofMat", "roofTbl", "roofSum"].forEach(function (id) { el(id).innerHTML = ""; });
-      el("woodCard").hidden = true; el("roofCard").hidden = true; el("boazCard").hidden = true;
+      el("woodCard").hidden = true; el("roofCard").hidden = true; el("boazCard").hidden = true; el("coverCard").hidden = true;
       return;
     }
     var p = r.p;
@@ -1681,6 +1812,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     }
 
     r.boaz = R ? renderBoaz(r) : (el("boazCard").hidden = true, null);
+    r.cover = R ? renderCover(r) : (el("coverCard").hidden = true, null);
 
     el("woodCard").hidden = !wood;
     if (wood) {
@@ -2011,6 +2143,12 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       r.roof.els.forEach(function (e) { L.push("  " + e.name + " " + secTxt(r, e.sec) + " cm: " + e.n + " × " + fcm(e.len) + " cm"); });
       if (r.roof.vergeLen > 0) L.push("  Okucie boczne (obróbka szczytów): " + f(r.roof.vergeLen, 2) + " mb");
       var Bz = boazCalc(r);
+      var Cv = coverCalc(r);
+      if (Cv && !Cv.err) {
+        if (Cv.type === "gont") L.push("  Gont bitumiczny: " + plural(Cv.packs, "paczka", "paczki", "paczek") + " (" + f(Cv.area, 2) + " m² + zapas), gąsiory " + f(Cv.ridge + Cv.hips, 2) + " mb, papa " + plural(Cv.rolls, "rolka", "rolki", "rolek"));
+        else L.push("  Blacha (krycie " + fcm(Cv.w) + " cm): " + Cv.sheets.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", ") + "; gąsior " + f(Cv.ridge + Cv.hips, 2) + " mb, wkręty ok. " + Cv.screws + ", membrana " + plural(Cv.rolls, "rolka", "rolki", "rolek"));
+        L.push("  Okapnik: " + f(Cv.eave, 2) + " mb");
+      }
       if (Bz && Bz.pack) {
         L.push("  Boazeria " + fcm(Bz.w) + " cm (paczka " + Bz.pp + " szt.): " + Bz.pack.packs.map(function (x) { return f(x.len, 1) + " m – " + x.packs + " pacz. (" + x.pcs + " szt.)"; }).join(", ") + "; razem " + f(Bz.pack.cost, 1) + " mb, " + f(Bz.m2, 2) + " m² krycia");
       }
@@ -2286,7 +2424,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var geo = new THREE.BufferGeometry();
         geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
         geo.computeVertexNormals();
-        mesh(geo, mat(0x46505a, { side: THREE.DoubleSide, roughness: 0.6, metalness: 0.2, emissive: 0x2a3138 }));
+        var gont = el("cvType").value === "gont";
+        mesh(geo, mat(gont ? 0x3b3d42 : 0x46505a, { side: THREE.DoubleSide, roughness: gont ? 0.95 : 0.5, metalness: gont ? 0 : 0.3, emissive: gont ? 0x1d1f23 : 0x2a3138 }));
       }
     }
     var top = R ? R.base + R.rise + 0.4 : p.ph + 0.4;
@@ -2408,6 +2547,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       parts.push(document.querySelector(".two"));
       if (!el("roofCard").hidden) parts.push(el("roofCard"));
       if (!el("boazCard").hidden) parts.push(el("boazCard"));
+      if (!el("coverCard").hidden) parts.push(el("coverCard"));
       if (!el("woodCard").hidden) parts.push(el("woodCard"));
       parts.push(el("tbl").closest(".card"), el("steps").closest(".card"));
 
