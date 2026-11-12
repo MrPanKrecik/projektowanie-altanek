@@ -482,7 +482,24 @@ tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight
             <span class="unit" data-u="cm"><input type="number" id="wcH" step="5" min="20" value="100"></span>
           </label>
         </div>
-        <p class="hint" id="wcHint">Szerokość desek i długości bierzemy z sekcji „Boazeria na dach”. Otwór drzwiowy zostaje wolny, nad drzwiami są deski. Gdy drewutnia jest w środku, obicie jej ściany idzie na ścianę przed drewnem (aż pod dach), a ściany boczne kończą się na drewutni.</p>
+        <div class="row" id="wcBox3">
+          <label>Szerokość krycia
+            <select id="wcW">
+              <option value="10">10 cm</option>
+              <option value="8">8 cm</option>
+            </select>
+          </label>
+          <label>Długości boazerii
+            <select id="wcMode">
+              <option value="any">Na wymiar (0,7–5 m co 10 cm)</option>
+              <option value="list">Tylko dostępne w składzie</option>
+            </select>
+          </label>
+        </div>
+        <label id="wcLWrap">Dostępne długości (ściany)
+          <input type="text" id="wcLen" value="5, 4, 3, 2.5, 2, 1.5, 1, 0.7" spellcheck="false" autocomplete="off">
+        </label>
+        <p class="hint" id="wcHint">Boazeria na ściany ma własne ustawienia, niezależne od dachu (może być malowana na inny kolor). Długości w metrach, opcjonalnie z liczbą sztuk, np. <span class="mono">4x20, 3, 2.5</span>. Otwór drzwiowy zostaje wolny, nad drzwiami są deski. Gdy drewutnia jest w środku, obicie jej ściany idzie na ścianę przed drewnem (aż pod dach), a ściany boczne kończą się na drewutni.</p>
       </fieldset>
 
       <fieldset>
@@ -824,7 +841,7 @@ tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight
 (function () {
   "use strict";
   var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "dH", "zArm", "zb", "zh", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "wfIn", "wfOut", "wfS1", "wfS2", "oLen", "oT", "oLW", "oLH",
-    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "wcMount", "wcOri", "wcHm", "wcH", "cvType", "cvColor", "cvCustom", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
+    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "wcMount", "wcOri", "wcHm", "wcH", "wcW", "wcMode", "wcLen", "cvType", "cvColor", "cvCustom", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
   var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft", "wcF", "wcB", "wcL", "wcR", "zOn"];
   var KEY = "kalkulator-altanki-v11";
@@ -1385,9 +1402,10 @@ tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight
 
   // ---------- boazeria na ścianach ----------
   function boardCfg() {
-    var w = parseFloat(el("bzW").value) / 100, pp = w > 0.09 ? 10 : 12, stock;
-    if (el("bzMode").value === "any") { stock = []; for (var sl = 7; sl <= 50; sl++) stock.push({ len: sl / 10, max: Infinity }); }
-    else stock = parseStock(el("bzL").value);
+    // ustawienia boazerii na ściany (osobne od dachu)
+    var w = parseFloat(el("wcW").value) / 100, pp = w > 0.09 ? 10 : 12, stock;
+    if (el("wcMode").value === "any") { stock = []; for (var sl = 7; sl <= 50; sl++) stock.push({ len: sl / 10, max: Infinity }); }
+    else stock = parseStock(el("wcLen").value);
     return { w: w, pp: pp, stock: stock };
   }
   var WALL_IDS = { "przód": "wcF", "tył": "wcB", "lewa": "wcL", "prawa": "wcR" };
@@ -1429,7 +1447,7 @@ tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight
     }
     if (!names.length && !woodB.length) return null;
     var cfg = boardCfg();
-    if (!cfg.stock.length) return { err: "Wpisz dostępne długości boazerii w sekcji „Boazeria na dach”." };
+    if (!cfg.stock.length) return { err: "Wpisz dostępne długości boazerii w sekcji „Ściany z boazerii”." };
     var mount = el("wcMount").value, ori = el("wcOri").value, maxL = cfg.stock[cfg.stock.length - 1].len, hm = el("wcHm").value;
     var z0 = 0.05, R = r.roof, s = p.s, beamTop = p.ph + p.bh;
     var partTop = z0 + Math.max(0.2, num("wcH") / 100 - z0), dTop = Math.min(num("dH") / 100, p.ph - 0.02);
@@ -2117,7 +2135,11 @@ tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight
     el("oLawBox").hidden = !el("oLaw").checked;
     el("zBox").hidden = !el("zOn").checked;
     var wcOn = ["wcF", "wcB", "wcL", "wcR"].some(function (id) { return el(id).checked; });
-    ["wcBox1", "wcBox2", "wcHint"].forEach(function (id) { el(id).hidden = !wcOn; });
+    // ustawienia boazerii na ściany widać też, gdy boazeria jest tylko na ścianie drewutni
+    var wcAny = wcOn || (el("wood").checked && ["wfIn", "wfOut", "wfS1", "wfS2"].some(function (id) { return el(id).value === "boards"; }));
+    ["wcBox1", "wcBox2"].forEach(function (id) { el(id).hidden = !wcOn; });
+    ["wcBox3", "wcHint"].forEach(function (id) { el(id).hidden = !wcAny; });
+    el("wcLWrap").hidden = !wcAny || el("wcMode").value !== "list";
     el("wcHWrap").hidden = el("wcHm").value !== "part";
     var rf = el("roof").value, rOn = rf !== "none";
     ["angWrap", "roofBox1", "extSupWrap", "extHint", "roofBox2", "roofBox3", "roofBox4", "stockWrap"].forEach(function (id) { el(id).hidden = !rOn; });
