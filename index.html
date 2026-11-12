@@ -445,7 +445,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <div class="row" id="wcBox1">
           <label>Mocowanie
             <select id="wcMount">
-              <option value="between">Między słupkami</option>
+              <option value="between">Między słupkami (słupki widoczne)</option>
               <option value="on">Na słupkach (od zewnątrz)</option>
             </select>
           </label>
@@ -459,7 +459,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <div class="row" id="wcBox2">
           <label>Wysokość
             <select id="wcHm">
-              <option value="full">Do belki (pełna)</option>
+              <option value="roof">Do dachu (ze szczytem)</option>
+              <option value="full">Do belki</option>
               <option value="part">Do zadanej wysokości</option>
             </select>
           </label>
@@ -467,7 +468,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <span class="unit" data-u="cm"><input type="number" id="wcH" step="5" min="20" value="100"></span>
           </label>
         </div>
-        <p class="hint" id="wcHint">Szerokość desek i długości bierzemy z sekcji „Boazeria na dach”. Otwór drzwiowy zostaje wolny. Gdy drewutnia jest w środku, obicie jej ściany idzie na ścianę przed drewnem (aż pod dach), a ściany boczne kończą się na drewutni.</p>
+        <p class="hint" id="wcHint">Szerokość desek i długości bierzemy z sekcji „Boazeria na dach”. Otwór drzwiowy zostaje wolny, nad drzwiami są deski. Gdy drewutnia jest w środku, obicie jej ściany idzie na ścianę przed drewnem (aż pod dach), a ściany boczne kończą się na drewutni.</p>
       </fieldset>
 
       <fieldset>
@@ -484,6 +485,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           </label>
           <label>Szerokość przejścia
             <span class="unit" data-u="cm"><input type="number" id="dW" step="1" min="50" value="90"></span>
+          </label>
+          <label>Wysokość drzwi
+            <span class="unit" data-u="cm"><input type="number" id="dH" step="1" min="150" value="200"></span>
           </label>
         </div>
         <label class="check"><input type="checkbox" id="dMid" checked> Drzwi na środku ściany</label>
@@ -682,7 +686,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <button type="button" data-view="side">Bok</button>
             <button type="button" data-view="top">Z góry</button>
           </div>
-          <label class="check"><input type="checkbox" id="v3roof" checked> Pokrycie dachu</label>
+          <div class="btns">
+            <label class="check"><input type="checkbox" id="v3roof" checked> Pokrycie dachu</label>
+            <label class="check"><input type="checkbox" id="v3walls" checked> Obite ściany</label>
+          </div>
         </div>
         <div class="v3box" id="v3box"><p class="v3msg" id="v3msg">Wczytuję widok 3D…</p></div>
       </section>
@@ -784,11 +791,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 <script>
 (function () {
   "use strict";
-  var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "wfIn", "wfOut", "wfS1", "wfS2", "oLen", "oT", "oLW", "oLH",
+  var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "dH", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "wfIn", "wfOut", "wfS1", "wfS2", "oLen", "oT", "oLW", "oLH",
     "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "wcMount", "wcOri", "wcHm", "wcH", "cvType", "cvColor", "cvCustom", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
   var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft", "wcF", "wcB", "wcL", "wcR"];
-  var KEY = "kalkulator-altanki-v10";
+  var KEY = "kalkulator-altanki-v11";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
   IDS.forEach(function (id) { defaults[id] = el(id).value; });
@@ -1388,54 +1395,88 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (!names.length && !woodB.length) return null;
     var cfg = boardCfg();
     if (!cfg.stock.length) return { err: "Wpisz dostępne długości boazerii w sekcji „Boazeria na dach”." };
-    var mount = el("wcMount").value, ori = el("wcOri").value, maxL = cfg.stock[cfg.stock.length - 1].len;
-    var full = mount === "on" ? p.ph + p.bh : p.ph;
-    var z0 = 0.05, H = Math.max(0.2, (el("wcHm").value === "part" ? Math.min(num("wcH") / 100, full) : full) - z0);
+    var mount = el("wcMount").value, ori = el("wcOri").value, maxL = cfg.stock[cfg.stock.length - 1].len, hm = el("wcHm").value;
+    var z0 = 0.05, R = r.roof, s = p.s, beamTop = p.ph + p.bh;
+    var partTop = z0 + Math.max(0.2, num("wcH") / 100 - z0), dTop = Math.min(num("dH") / 100, p.ph - 0.02);
+    var H = hm === "part" ? partTop - z0 : (mount === "on" ? beamTop : p.ph) - z0;
     var pieces = [], rygle = {}, area = 0, perWall = [], warnT = [], panels = [];
     function addRygle(clear) { var nr = H > 1.2 ? 3 : 2, L = Math.ceil(clear * 100 - 1e-6) / 100; rygle[L] = (rygle[L] || 0) + nr; }
-    names.forEach(function (name) {
-      var W = r.walls[name], pos = W.pos.map(function (q) { return q.u; }), s = p.s, a0 = 0;
-      if (mount === "between") {
-        for (var i = 0; i < pos.length - 1; i++) {
-          if (W.door && i === W.door.gi) continue;
-          var a = pos[i] + s / 2, b = pos[i + 1] - s / 2, clear = b - a;
-          if (inExcl(name, (a + b) / 2)) continue;
-          if (clear < 0.05) continue;
-          panels.push({ wall: name, a: a, b: b, t: s / 2 });
-          a0 += clear * H;
-          if (ori === "h") {
-            var parts = Math.ceil(clear / maxL - 1e-9), rows = Math.ceil(H / cfg.w - 1e-6);
-            for (var k = 0; k < rows * parts; k++) pieces.push(clear / parts);
-            if (parts > 1) warnT.push("Na ścianie „" + name + "” przęsło ma " + fcm(clear) + " cm, dłużej niż najdłuższa deska. Deski trzeba łączyć bez podparcia.");
-          } else {
-            var nv = Math.ceil(clear / cfg.w - 1e-6);
-            for (k = 0; k < nv; k++) pieces.push(H);
-            addRygle(clear);
-          }
+    // górna krawędź pod dachem: spód krokwi nad ścianą (na szczycie trójkąt), co najmniej wierzch belki
+    function roofTop(name, u) { if (!R) return beamTop; var q = wallPoint(p, name, u); return Math.max(beamTop, R.z(q.x, q.y)); }
+    // panel: odcinek ściany [a, b] (wzdłuż ściany), dół zb, góra topFn(u); t = położenie w grubości ściany
+    function addPanel(name, a, b, t, zb, topFn, pattern) {
+      var len = b - a; if (len < 0.05) return 0;
+      var N = Math.max(2, Math.ceil(len / 0.05)), us = [], tops = [], maxTop = 0;
+      for (var i = 0; i <= N; i++) { var u = a + len * i / N, tp = topFn(u); us.push(u); tops.push(tp); maxTop = Math.max(maxTop, tp); }
+      if (maxTop - zb < 0.03) return 0;
+      var ar = 0;
+      for (i = 0; i < N; i++) ar += Math.max(0, (tops[i] + tops[i + 1]) / 2 - zb) * len / N;
+      if (ori === "h") {
+        var row = 0;
+        for (var z = zb; z < maxTop - 0.01; z += cfg.w, row++) {
+          var cov = tops.filter(function (tp) { return tp >= z + cfg.w / 2; }).length;
+          var Lr = len * Math.max(0, cov - 1) / N; if (Lr < 0.05) continue;
+          if (pattern && Lr > len - 1e-6) { pieces = pieces.concat((row % 2 ? pattern.B : pattern.A).pcs); continue; }
+          var parts = Math.ceil(Lr / maxL - 1e-9);
+          for (var k = 0; k < parts; k++) pieces.push(Lr / parts);
         }
       } else {
+        var nv = Math.ceil(len / cfg.w - 1e-6);
+        for (var c = 0; c < nv; c++) {
+          var uc = a + Math.min(len, (c + 0.5) * cfg.w), idx = Math.round((uc - a) / len * N), hgt = tops[idx] - zb;
+          if (hgt > 0.03) pieces.push(hgt);
+        }
+      }
+      panels.push({ wall: name, a: a, b: b, t: t, zb: zb, us: us, tops: tops });
+      return ar;
+    }
+    names.forEach(function (name) {
+      var W = r.walls[name], pos = W.pos.map(function (q) { return q.u; }), a0 = 0;
+      var lowTop = hm === "part" ? function () { return Math.min(partTop, p.ph); } : function () { return p.ph; };
+      if (mount === "between") {
+        // deski w przęsłach, licem równo z zewnętrzną krawędzią słupków (słupki i belka zostają widoczne)
+        var tF = 0.009;
+        for (var i = 0; i < pos.length - 1; i++) {
+          var a = pos[i] + s / 2, b = pos[i + 1] - s / 2;
+          if (inExcl(name, (a + b) / 2)) continue;
+          if (W.door && i === W.door.gi) {
+            if (hm !== "part") a0 += addPanel(name, a, b, tF, dTop, lowTop);   // nad drzwiami
+            continue;
+          }
+          a0 += addPanel(name, a, b, tF, z0, lowTop);
+          if (ori === "v") addRygle(b - a);
+          if (ori === "h" && b - a > maxL + 1e-9) warnT.push("Na ścianie „" + name + "” przęsło ma " + fcm(b - a) + " cm, dłużej niż najdłuższa deska. Deski trzeba łączyć bez podparcia.");
+        }
+        if (hm === "roof") {
+          // nad belką aż pod dach (trójkąt szczytu albo pas nad belką)
+          cutSegs(name, [[0, W.L]]).forEach(function (sg) {
+            a0 += addPanel(name, sg[0], sg[1], tF, beamTop, function (u) { return roofTop(name, u); });
+          });
+        }
+      } else {
+        // na słupkach: deski od zewnątrz zakrywają słupki i belkę
+        var tO = -0.009, topO = hm === "part" ? function (u) { return Math.min(partTop, roofTop(name, u)); } : hm === "full" ? function () { return beamTop; } : function (u) { return roofTop(name, u); };
         var segs = cutSegs(name, W.door ? [[0, W.door.d0], [W.door.d0 + W.door.w, W.L]] : [[0, W.L]]);
         segs.forEach(function (sg) {
-          var len = sg[1] - sg[0]; if (len < 0.05) return;
-          panels.push({ wall: name, a: sg[0], b: sg[1], t: -0.012 });
-          a0 += len * H;
+          var pattern = null;
           if (ori === "h") {
-            var row2 = { L: len, sup: pos.filter(function (u) { return u > sg[0] - 1e-6 && u < sg[1] + 1e-6; }).map(function (u) { return u - sg[0]; }) };
+            var row2 = { L: sg[1] - sg[0], sup: pos.filter(function (u) { return u > sg[0] - 1e-6 && u < sg[1] + 1e-6; }).map(function (u) { return u - sg[0]; }) };
             var opts = rowSplits(row2, maxL, 3000);
-            if (!opts.length) { warnT.push("Ściany „" + name + "” nie da się obić deskami z łączeniami na słupkach. Dodaj dłuższe deski albo zmniejsz rozstaw słupków."); return; }
-            opts.forEach(function (o) { o.cost = o.pcs.reduce(function (acc, pc) { var st = cfg.stock.filter(function (x) { return x.len >= pc - 1e-9; })[0]; return acc + (st ? st.len - pc : 99) + 0.03; }, 0); });
-            opts.sort(function (x, y) { return x.cost - y.cost; });
-            var rowsN = Math.ceil(H / cfg.w - 1e-6), A = opts[0], B = opts.length > 1 ? opts.filter(function (o) { return !o.joints.some(function (j) { return A.joints.some(function (jj) { return Math.abs(j - jj) < 1e-6; }); }); })[0] || A : A;
-            for (var k2 = 0; k2 < rowsN; k2++) pieces = pieces.concat((k2 % 2 ? B : A).pcs);
+            if (opts.length) {
+              opts.forEach(function (o) { o.cost = o.pcs.reduce(function (acc, pc) { var st = cfg.stock.filter(function (x) { return x.len >= pc - 1e-9; })[0]; return acc + (st ? st.len - pc : 99) + 0.03; }, 0); });
+              opts.sort(function (x, y) { return x.cost - y.cost; });
+              var A = opts[0], Bp = opts.filter(function (o) { return !o.joints.some(function (j) { return A.joints.some(function (jj) { return Math.abs(j - jj) < 1e-6; }); }); })[0] || A;
+              pattern = { A: A, B: Bp };
+            } else warnT.push("Ściany „" + name + "” nie da się obić deskami z łączeniami na słupkach. Dodaj dłuższe deski albo zmniejsz rozstaw słupków.");
           } else {
-            var nv2 = Math.ceil(len / cfg.w - 1e-6);
-            for (var k3 = 0; k3 < nv2; k3++) pieces.push(H);
             for (var i2 = 0; i2 < pos.length - 1; i2++) {
               if (W.door && i2 === W.door.gi) continue;
               if (pos[i2] >= sg[0] - 1e-6 && pos[i2 + 1] <= sg[1] + 1e-6) addRygle(pos[i2 + 1] - pos[i2] - s);
             }
           }
+          a0 += addPanel(name, sg[0], sg[1], tO, z0, topO, pattern);
         });
+        if (W.door && hm !== "part") a0 += addPanel(name, W.door.d0, W.door.d0 + W.door.w, tO, dTop, topO);   // nad drzwiami
       }
       if (a0 > 0) { perWall.push({ name: name, area: a0 }); area += a0; }
     });
@@ -1474,7 +1515,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("wallCard").hidden = !Wc;
     if (!Wc) return null;
     if (Wc.err) { el("wallMat").innerHTML = row("Boazeria", Wc.err); return Wc; }
-    el("wallTag").textContent = Wc.onlyWood ? "ściany drewutni, deski poziomo do dachu" : (Wc.mount === "on" ? "na słupkach" : "między słupkami") + ", deski " + (Wc.ori === "h" ? "poziomo" : "pionowo") + ", wysokość " + fcm(Wc.H) + " cm";
+    var hmv = el("wcHm").value;
+    el("wallTag").textContent = Wc.onlyWood ? "ściany drewutni, deski poziomo do dachu" : (Wc.mount === "on" ? "na słupkach" : "między słupkami") + ", deski " + (Wc.ori === "h" ? "poziomo" : "pionowo") + ", " + (hmv === "roof" ? "do dachu" : hmv === "full" ? "do belki" : "do " + fcm(num("wcH") / 100) + " cm");
     var m = Wc.perWall.map(function (w) { return row("Ściana: " + w.name, f(w.area, 2) + " m²"); });
     m.push(row("Razem do obicia", f(Wc.area, 2) + " m²"));
     m.push(row("Kawałki desek<small>długości po docięciu</small>", Wc.cuts.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
@@ -2686,25 +2728,34 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var dw = p.door ? r.walls[p.dWall] : null;
     if (dw && dw.door) {
       var a = wallPoint(p, p.dWall, dw.door.d0), b = wallPoint(p, p.dWall, dw.door.d0 + dw.door.w);
-      var dh = Math.min(2.0, p.ph - 0.05), th = 0.04;
+      var dh = Math.min(num("dH") / 100, p.ph - 0.02), th = 0.04;
       var dx = (b.x - a.x), dy = (b.y - a.y);
       boxAt(Math.min(a.x, b.x) - (dx ? 0 : th / 2), Math.min(a.y, b.y) - (dy ? 0 : th / 2), Math.max(a.x, b.x) + (dx ? 0 : th / 2), Math.max(a.y, b.y) + (dy ? 0 : th / 2), 0.02, dh, mat(0x7a5434));
     }
 
     // ściany z boazerii: deski między słupkami albo na zewnątrz słupków
-    var Wc3 = wallCalc(r);
+    var Wc3 = el("v3walls").checked ? wallCalc(r) : null;
     if (Wc3 && !Wc3.err) {
       var bwc = Wc3.cfg.w, horizB = Wc3.ori === "h";
       var wcv = document.createElement("canvas"); wcv.width = 32; wcv.height = 32;
       var wg = wcv.getContext("2d"); wg.fillStyle = "#c9a06a"; wg.fillRect(0, 0, 32, 32); wg.fillStyle = "#8a6438";
       if (horizB) wg.fillRect(0, 0, 32, 2); else wg.fillRect(0, 0, 2, 32);
       Wc3.panels.forEach(function (pn) {
-        var A1 = pt(p, pn.wall, pn.a, pn.t), A2 = pt(p, pn.wall, pn.b, pn.t), len = Math.hypot(A2.x - A1.x, A2.y - A1.y);
+        var pos = [], uv = [], n = pn.us.length;
+        for (var i = 0; i < n - 1; i++) {
+          var q0 = pt(p, pn.wall, pn.us[i], pn.t), q1 = pt(p, pn.wall, pn.us[i + 1], pn.t);
+          var u0 = pn.us[i] - pn.a, u1 = pn.us[i + 1] - pn.a, t0 = Math.max(pn.zb, pn.tops[i]), t1 = Math.max(pn.zb, pn.tops[i + 1]);
+          [[q0, u0, pn.zb], [q1, u1, pn.zb], [q1, u1, t1], [q0, u0, pn.zb], [q1, u1, t1], [q0, u0, t0]].forEach(function (e) {
+            var v = V(e[0].x, e[0].y, e[2]); pos.push(v.x, v.y, v.z);
+            uv.push(horizB ? e[1] : e[1] / bwc, horizB ? e[2] / bwc : e[2]);
+          });
+        }
+        var gw = new THREE.BufferGeometry();
+        gw.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        gw.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+        gw.computeVertexNormals();
         var tx = new THREE.CanvasTexture(wcv); tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
-        tx.repeat.set(horizB ? 1 : len / bwc, horizB ? Wc3.H / bwc : 1);
-        var o = mesh(new THREE.BoxGeometry(len, Wc3.H, 0.018), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.85 }));
-        o.position.copy(V((A1.x + A2.x) / 2, (A1.y + A2.y) / 2, Wc3.z0 + Wc3.H / 2));
-        o.rotation.y = -Math.atan2(-(A2.y - A1.y), (A2.x - A1.x));
+        mesh(gw, new THREE.MeshStandardMaterial({ map: tx, side: THREE.DoubleSide, roughness: 0.85 }));
       });
     }
 
@@ -2743,7 +2794,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       var mSlat = mat(0xc29560);
       w.faceList.forEach(function (fc) { if (fc.type === "slats" || fc.type === "lattice") face(fc); });
       // boazeria na ścianach drewutni: od dołu aż pod krokwie
-      var WcW = wallCalc(r);
+      var WcW = el("v3walls").checked ? wallCalc(r) : null;
       if (WcW && !WcW.err) WcW.woodPanels.forEach(function (wp) {
         var A1 = wp.pts[0], A2 = wp.pts[wp.pts.length - 1], sh = shiftOf(wp.fc, A1, A2, 0.012), pos = [], uv = [], bw = WcW.cfg.w;
         var len = Math.hypot(A2.x - A1.x, A2.y - A1.y);
@@ -2912,6 +2963,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   }
   document.querySelectorAll("[data-view]").forEach(function (b) { b.addEventListener("click", function () { setView(b.getAttribute("data-view")); }); });
   el("v3roof").addEventListener("change", function () { if (V3.r) build3d(V3.r); });
+  el("v3walls").addEventListener("change", function () { if (V3.r) build3d(V3.r); });
   if (window.matchMedia) {
     var mq = window.matchMedia("(prefers-color-scheme: dark)");
     if (mq.addEventListener) mq.addEventListener("change", function () { if (V3.r) build3d(V3.r); });
