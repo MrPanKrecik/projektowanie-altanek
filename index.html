@@ -196,6 +196,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 .bz-piece.alt { fill: var(--pave-fill); }
 .bz-raft { fill: var(--timber); }
 .bz-txt { fill: var(--ink); font-family: var(--font-mono); font-size: 11px; }
+.svg-brace { stroke: var(--timber); stroke-width: 3; stroke-linecap: round; }
 .svg-tie { stroke: var(--timber); stroke-width: 4; stroke-opacity: 0.45; }
 .svg-rafter { stroke: var(--roof); stroke-width: 1; stroke-opacity: 0.45; }
 .svg-ridge { stroke: var(--roof); stroke-width: 2.2; }
@@ -273,6 +274,15 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           </label>
           <label>Przekrój słupka
             <span class="unit" data-u="cm"><input type="number" id="post" step="1" min="5" value="12"></span>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="zOn" checked> Zastrzały (miecze) między słupkiem a belką</label>
+        <div class="row" id="zBox">
+          <label>Ramię zastrzału
+            <span class="unit" data-u="cm"><input type="number" id="zArm" step="5" min="20" value="50"></span>
+          </label>
+          <label>Przekrój szer. × wys.
+            <span class="pair"><span class="unit" data-u="cm"><input type="number" id="zb" step="1" min="4" value="10" aria-label="Szerokość zastrzału"></span><span class="unit" data-u="cm"><input type="number" id="zh" step="1" min="4" value="10" aria-label="Wysokość zastrzału"></span></span>
           </label>
         </div>
         <label class="check" id="ridgeWrap"><input type="checkbox" id="ridge"> <span id="ridgeTxt">Płatew i słupki pod kalenicą</span></label>
@@ -674,6 +684,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           <span><i class="sw" style="background:var(--wood-fill);border:1.5px solid var(--wood)"></i>drewutnia z kratownicą</span>
           <span><i class="sw" style="border:1.6px dashed var(--roof);background:transparent"></i>obrys dachu, kalenica i krokwie</span>
           <span><i class="sw" style="border:0;border-top:4px solid var(--timber);opacity:.6;height:4px;background:transparent"></i>belki poprzeczne</span>
+          <span><i class="sw" style="border:0;border-top:3px solid var(--timber);height:3px;width:10px;background:transparent"></i>zastrzały</span>
         </div>
       </section>
 
@@ -772,6 +783,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
                 <th>Y od kostki</th>
                 <th>X od narożnika altany</th>
                 <th>Y od narożnika altany</th>
+                <th class="l">Zastrzały</th>
               </tr>
             </thead>
             <tbody id="tbl"></tbody>
@@ -791,10 +803,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 <script>
 (function () {
   "use strict";
-  var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "dH", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "wfIn", "wfOut", "wfS1", "wfS2", "oLen", "oT", "oLW", "oLH",
+  var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "dH", "zArm", "zb", "zh", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "wfIn", "wfOut", "wfS1", "wfS2", "oLen", "oT", "oLW", "oLH",
     "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "wcMount", "wcOri", "wcHm", "wcH", "cvType", "cvColor", "cvCustom", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
-  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft", "wcF", "wcB", "wcL", "wcR"];
+  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft", "wcF", "wcB", "wcL", "wcR", "zOn"];
   var KEY = "kalkulator-altanki-v11";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
@@ -1217,8 +1229,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     pts.forEach(function (q) { add("Słupki", "s", R.heightAt(q), 1); });
     if (p.roof === "mono") R.arrow = p.sDir;
 
+    // zastrzały: długość w osi = ramię × √2, do zamówienia z zacięciami pod 45°
+    if (p.braces && p.braces.length) add("Zastrzały (miecze)", "z", p.zArm * Math.SQRT2 + p.zh, p.braces.length);
+
     // kolejność: krokwie, belki, deski, słupki; ten sam element od najdłuższego
-    var ord = { k: 0, b: 1, d: 2, l: 3, s: 4 };
+    var ord = { k: 0, b: 1, z: 1.5, d: 2, l: 3, s: 4 };
     var first = { "Krokwie zwykłe": -2, "Krokwie kulawe": -1 };
     R.els.forEach(function (e, i) { if (!(e.name in first)) first[e.name] = i; });
     R.els.sort(function (a, b) {
@@ -1244,8 +1259,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (Ep === 0 && p.ext > 1.2) warn.push("Daszek wysunięty o " + fcm(p.ext) + " cm bez słupków to dużo. Powyżej ok. 120 cm lepiej postawić dodatkowe słupki.");
 
     // zamówienie w tartaku: dokładne długości + zapas na docięcie, w górę do pełnych 10 cm
-    var secs = { k: { n: "Krokwie", b: p.kb, h: p.kh }, b: { n: "Belki", b: p.bb, h: p.bh }, d: { n: "Deski", b: p.db, h: p.dh }, l: { n: "Łaty", b: p.lb, h: p.lh }, s: { n: "Słupki", b: p.s, h: p.s } };
-    R.sum = ["k", "b", "d", "l", "s"].map(function (key) {
+    var secs = { k: { n: "Krokwie", b: p.kb, h: p.kh }, b: { n: "Belki", b: p.bb, h: p.bh }, d: { n: "Deski", b: p.db, h: p.dh }, l: { n: "Łaty", b: p.lb, h: p.lh }, z: { n: "Zastrzały", b: p.zb, h: p.zh }, s: { n: "Słupki", b: p.s, h: p.s } };
+    R.sum = ["k", "b", "z", "d", "l", "s"].map(function (key) {
       var cnt = {}, mb = 0, n = 0;
       R.els.forEach(function (e) {
         if (e.sec !== key) return;
@@ -1773,6 +1788,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       wood: el("wood").checked, wWall: el("wWall").value, wMode: el("wMode").value, wD: num("wD") / 100, wH: num("wH") / 100,
       wFull: el("wFull").checked, wOff: num("wOff") / 100, wLen: num("wLen") / 100,
       vov: el("boaz").checked ? num("bzO") / 100 : null,
+      zOn: el("zOn").checked, zArm: num("zArm") / 100, zb: num("zb") / 100, zh: num("zh") / 100,
       oF: el("oF").checked, oB: el("oB").checked, oL: el("oL").checked, oR: el("oR").checked,
       roof: el("roof").value, ang: num("ang"), rDir: el("rDir").value, sDir: el("sDir").value,
       ov: num("ov") / 100, ext: num("ext") / 100, extSup: el("extSup").value, rs: num("rs") / 100, ph: num("ph") / 100,
@@ -1981,6 +1997,42 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         [wood.u1 + p.s / 2, wood.u2 - p.s / 2].forEach(function (u) { if (alongWallX) p.raftForce.x.push(u); else p.raftForce.y.push(u); });
       }
     }
+    // zastrzały: przy każdym słupku wzdłuż belki, w stronę sąsiedniego słupka, pod 45°
+    var braces = [], skipped = 0;
+    if (p.zOn && p.zArm > 0) {
+      var keyOf = function (x, y) { return Math.round(x * 1000) + "_" + Math.round(y * 1000); };
+      var postBy = {}; pts.forEach(function (q) { postBy[keyOf(q.ax, q.ay)] = q; });
+      var lineBr = function (P, gapSkip) {
+        for (var i = 0; i < P.length; i++) [-1, 1].forEach(function (dir) {
+          var j = i + dir; if (j < 0 || j >= P.length) return;
+          var A = P[i], Bq = P[j], dist = Math.hypot(Bq.x - A.x, Bq.y - A.y);
+          if (dist - p.s < 2 * p.zArm + 0.1) { skipped++; return; }
+          if (gapSkip && gapSkip(Math.min(i, j))) return;
+          var q = postBy[keyOf(A.x, A.y)];
+          braces.push({ x: A.x, y: A.y, ux: (Bq.x - A.x) / dist, uy: (Bq.y - A.y) / dist, post: q });
+        });
+      };
+      WALLS.forEach(function (n) {
+        var W = walls[n];
+        lineBr(W.pos.map(function (q) { return wallPoint(p, n, q.u); }), function (i) {
+          // nad drzwiami tylko wtedy, gdy zastrzał nie schodzi poniżej górnej krawędzi drzwi
+          return W.door && i === W.door.gi && p.ph - p.zArm < num("dH") / 100 + 0.02;
+        });
+      });
+      if (extLine) {
+        lineBr(extLine.pos.map(function (q) { return { x: q.u, y: extLine.y }; }));
+        [p.s / 2, p.A - p.s / 2].forEach(function (x) {
+          var P = [{ x: x, y: extLine.y }].concat(extLine.side.map(function (q) { return { x: x, y: q.u }; }), [{ x: x, y: p.s / 2 }]);
+          lineBr(P);
+        });
+      }
+      braces.forEach(function (b) {
+        var nm = b.ux > 0.5 ? "w prawo" : b.ux < -0.5 ? "w lewo" : b.uy > 0.5 ? "do tyłu" : "do przodu";
+        b.dirName = nm;
+        if (b.post) (b.post.braces = b.post.braces || []).push(nm);
+      });
+    }
+    p.braces = braces;
     var roof = roofCalc(p, pts, Ep, maxSpan, warn);
 
     var area = KX * KY;
@@ -1990,7 +2042,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var LA = p.A - p.s, LB = p.B - p.s;
     return {
       p: p, warn: warn, walls: walls, wood: wood, curb: curb, woodLine: woodLine, LA: LA, LB: LB, KX: KX, KY: KY, ox: ox, oy: oy,
-      pts: pts, doorPts: doorPts, woodPts: woodPts, extPts: pts.filter(function (q) { return q.ext; }), extLine: extLine, Ep: Ep, roof: roof,
+      pts: pts, doorPts: doorPts, woodPts: woodPts, braces: braces, braceSkipped: skipped, extPts: pts.filter(function (q) { return q.ext; }), extLine: extLine, Ep: Ep, roof: roof,
       maxSpan: maxSpan, area: area, areaW: areaW, pieces: Math.ceil(areaW * p.perM2), pallets: areaW / p.pallet,
       perim: 2 * (KX + KY), dig: dig, exc: area * dig, baseLoose: area * p.base * 1.25, bedLoose: area * p.bed * 1.25,
       cementKg: area * p.bed * 1.25 * 250, footV: footV, footBags: Math.ceil(footV * 1000 / 12), // worek 25 kg ≈ 12 l betonu
@@ -2020,6 +2072,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("dHint").textContent = "Szerokość przejścia to prześwit między słupkami przy drzwiach." +
       (el("dMid").checked ? "" : (dw === "przód" || dw === "tył") ? " Odległość mierzysz od lewej zewnętrznej krawędzi altany, patrząc od frontu." : " Odległość mierzysz od przedniej zewnętrznej krawędzi altany.");
     el("oLawBox").hidden = !el("oLaw").checked;
+    el("zBox").hidden = !el("zOn").checked;
     var wcOn = ["wcF", "wcB", "wcL", "wcR"].some(function (id) { return el(id).checked; });
     ["wcBox1", "wcBox2", "wcHint"].forEach(function (id) { el(id).hidden = !wcOn; });
     el("wcHWrap").hidden = el("wcHm").value !== "part";
@@ -2090,6 +2143,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       postRows.push(row("Słupki przy drzwiach<small>ściana: " + p.dWall + ", prześwit " + fcm(dWall.door.w) + " cm</small>", ids(r.doorPts)));
       postRows.push(row("Nadproże<small>belka nad drzwiami, z oparciem na słupkach</small>", "min. " + fcm(dWall.door.w + 2 * p.s) + " cm"));
     }
+    if (p.zOn) postRows.push(row("Zastrzały (miecze)<small>45°, ramię " + fcm(p.zArm) + " cm, długość w osi " + fcm(p.zArm * Math.SQRT2) + " cm" + (r.braceSkipped ? "; " + plural(r.braceSkipped, "miejsce", "miejsca", "miejsc") + " bez zastrzału, bo przęsło jest za krótkie" : "") + "</small>",
+      plural(r.braces.length, "sztuka", "sztuki", "sztuk") + " · " + fcm(p.zb) + " × " + fcm(p.zh) + " cm, po " + fcm(Math.ceil((p.zArm * Math.SQRT2 + p.zh) * 100 - 1e-6) / 100) + " cm"));
     postRows.push(row("Kotwy / marki słupków", r.pts.length + " szt."));
     postRows.push(row("Stopy " + fcm(p.foot) + " × " + fcm(p.foot) + " × " + fcm(p.depth) + " cm", f(r.footV, 2) + " m³ betonu"));
     postRows.push(row("Suchy beton B20, worki 25 kg", "~" + r.footBags + " szt."));
@@ -2140,7 +2195,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       var desc = cap(q.wall) + (q.corner ? " (narożnik)" : "") + (tags.length ? " · " + tags.join(" · ") : "");
       html += "<tr><td><span class=\"pid" + (q.door ? " door" : "") + (q.wood ? " wood" : "") + (q.ext ? " ext" : "") + "\">" + q.id + "</span></td><td class=\"l\">" + desc + "</td>" +
         "<td class=\"mono\">" + fcm(q.kx) + "</td><td class=\"mono\">" + fcm(q.ky) + "</td>" +
-        "<td class=\"mono\">" + fcm(q.ax) + "</td><td class=\"mono\">" + fcm(q.ay) + "</td></tr>";
+        "<td class=\"mono\">" + fcm(q.ax) + "</td><td class=\"mono\">" + fcm(q.ay) + "</td><td class=\"l\">" + (q.braces && q.braces.length ? q.braces.join(", ") : "–") + "</td></tr>";
     });
     el("tbl").innerHTML = html;
 
@@ -2188,6 +2243,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (sec === "b") return fcm(p.bb) + " × " + fcm(p.bh);
     if (sec === "d") return fcm(p.db) + " × " + fcm(p.dh);
     if (sec === "l") return fcm(p.lb) + " × " + fcm(p.lh);
+    if (sec === "z") return fcm(p.zb) + " × " + fcm(p.zh);
     return fcm(p.s) + " × " + fcm(p.s);
   }
   function roofDesc(r) {
@@ -2277,6 +2333,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (R) {
       function ln(a, cls) { return '<line x1="' + GX(a[0]).toFixed(1) + '" y1="' + GY(a[1]).toFixed(1) + '" x2="' + GX(a[2]).toFixed(1) + '" y2="' + GY(a[3]).toFixed(1) + '" class="' + cls + '"/>'; }
       (R.ties || []).forEach(function (a) { o.push(ln(a, "svg-tie")); });
+      (r.braces || []).forEach(function (b) { o.push(ln([b.x + b.ux * p.s / 2, b.y + b.uy * p.s / 2, b.x + b.ux * (p.s / 2 + p.zArm), b.y + b.uy * (p.s / 2 + p.zArm)], "svg-brace")); });
       R.rafters.forEach(function (a) { o.push(ln(a, "svg-rafter")); });
       o.push(rectPts({ x: R.cover.x0, y: R.cover.y0 }, { x: R.cover.x1, y: R.cover.y1 }, "svg-roof"));
       if (R.ridge) o.push(ln(R.ridge, "svg-ridge"));
@@ -2467,6 +2524,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       L.push("Boazeria na ściany (" + (Wc.mount === "on" ? "na słupkach" : "między słupkami") + ", " + (Wc.ori === "h" ? "poziomo" : "pionowo") + ", " + f(Wc.area, 2) + " m²): " + Wc.pack.packs.map(function (x) { return f(x.len, 1) + " m – " + x.packs + " pacz."; }).join(", "));
       if (Wc.rygle.length) L.push("Rygle 5×7 cm: " + Wc.rygle.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", "));
     }
+    if (r.braces && r.braces.length) L.push("Zastrzały (miecze) " + fcm(p.zb) + "×" + fcm(p.zh) + " cm: " + r.braces.length + " szt. po " + fcm(Math.ceil((p.zArm * Math.SQRT2 + p.zh) * 100 - 1e-6) / 100) + " cm (ramię " + fcm(p.zArm) + " cm, 45°)");
     L.push("Kotwy: " + r.pts.length + " szt., beton na stopy: " + f(r.footV, 2) + " m³ (~" + r.footBags + " worków 25 kg)");
     L.push("");
     L.push("Pozycje słupków od lewego przedniego rogu kostki (X wzdłuż frontu / Y w głąb, cm):");
@@ -2732,6 +2790,14 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       var dx = (b.x - a.x), dy = (b.y - a.y);
       boxAt(Math.min(a.x, b.x) - (dx ? 0 : th / 2), Math.min(a.y, b.y) - (dy ? 0 : th / 2), Math.max(a.x, b.x) + (dx ? 0 : th / 2), Math.max(a.y, b.y) + (dy ? 0 : th / 2), 0.02, dh, mat(0x7a5434));
     }
+
+    // zastrzały: od słupka (ramię w dół) do spodu belki (ramię wzdłuż belki)
+    (r.braces || []).forEach(function (b) {
+      var top = hAt(b.post || { ax: b.x, ay: b.y });
+      var P1 = V(b.x + b.ux * p.s / 2, b.y + b.uy * p.s / 2, top - p.zArm), P2 = V(b.x + b.ux * (p.s / 2 + p.zArm), b.y + b.uy * (p.s / 2 + p.zArm), top);
+      var o = bar(P1, P2, p.zb, p.zh, mBeam);
+      if (o) o.translateY(-p.zh);   // oś zastrzału na linii słupek–belka
+    });
 
     // ściany z boazerii: deski między słupkami albo na zewnątrz słupków
     var Wc3 = el("v3walls").checked ? wallCalc(r) : null;

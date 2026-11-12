@@ -25,6 +25,7 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
 - **Boazeria na dach** – liczba rzędów na każdej połaci, układ desek z łączeniami tylko na krokwiach
   (na mijankę), zakup na wymiar (0,7–5 m) w pełnych paczkach albo z długości dostępnych w składzie, lista zakupu
   i plan cięcia z wykorzystaniem ścinków.
+- **Zastrzały (miecze)** – ile i przy których słupkach (kierunek w tabeli słupków), ramię i przekrój do ustawienia.
 - **Fundamenty** – kotwy, beton na stopy fundamentowe.
 - **Projekty** – zapis pod nazwą w przeglądarce, link do projektu (do wysłania komuś albo na inne
   urządzenie), plik `.json` do pobrania i wczytania.
