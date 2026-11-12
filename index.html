@@ -196,6 +196,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 .bz-piece.alt { fill: var(--pave-fill); }
 .bz-raft { fill: var(--timber); }
 .bz-txt { fill: var(--ink); font-family: var(--font-mono); font-size: 11px; }
+table.order td { white-space: normal; vertical-align: top; }
+table.order td:nth-child(3) { white-space: nowrap; font-family: var(--font-mono); font-size: 13.5px; }
+table.order td.l { text-align: left; }
+tr.cat td { background: var(--bg); font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: 14px; color: var(--ink); padding-top: 10px; }
 .svg-brace { stroke: var(--timber); stroke-width: 3; stroke-linecap: round; }
 .svg-tie { stroke: var(--timber); stroke-width: 4; stroke-opacity: 0.45; }
 .svg-rafter { stroke: var(--roof); stroke-width: 1; stroke-opacity: 0.45; }
@@ -790,6 +794,22 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           </table>
         </div>
         <p class="note">X mierzysz wzdłuż frontu (od lewej), Y w głąb (od przodu). „Narożnik altany” to zewnętrzny róg słupka S1. Wartości ujemne oznaczają słupki przed frontem lub na lewo od altany.</p>
+      </section>
+
+      <section class="card" id="orderCard">
+        <h2>Zamówienie <span class="tag">wszystko w jednym miejscu</span></h2>
+        <div class="btns">
+          <button type="button" id="orderCopy">Kopiuj tabelę</button>
+          <button type="button" id="orderCsv">Pobierz CSV</button>
+        </div>
+        <p class="hint" id="orderMsg" aria-live="polite"></p>
+        <div class="tbl-wrap">
+          <table class="order">
+            <thead><tr><th class="l">Materiał</th><th class="l">Wymiar</th><th>Ilość</th><th class="l">Uwagi</th></tr></thead>
+            <tbody id="orderTbl"></tbody>
+          </table>
+        </div>
+        <p class="note">Drewno z tartaku ma długości z zapasem na docięcie (pole „Zapas na docięcie”), zaokrąglone w górę do 10 cm. Boazerię liczę w pełnych paczkach. Ilości betonu, kruszywa i cementu są orientacyjne.</p>
       </section>
 
       <section class="card">
@@ -2191,6 +2211,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     r.boaz = R ? renderBoaz(r) : (el("boazCard").hidden = true, null);
     r.cover = R ? renderCover(r) : (el("coverCard").hidden = true, null);
     r.wallC = renderWalls(r);
+    renderOrder(r);
 
     el("woodCard").hidden = !wood;
     if (wood) {
@@ -3101,6 +3122,104 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     unavailable: "Tutaj nie da się zapisać pliku. Otwórz stronę na GitHub Pages albo użyj „Kopiuj link”."
   };
 
+
+  // ---------- zbiorcze zamówienie ----------
+  function orderRows(r) {
+    var p = r.p, R = r.roof, rows = [];
+    function cat(n) { rows.push({ cat: n }); }
+    function add(name, dim, qty, note) { rows.push({ name: name, dim: dim || "", qty: qty, note: note || "" }); }
+    // kostka i podbudowa
+    cat("Kostka i podbudowa");
+    add("Kostka brukowa – " + p.fmtName, fcm(p.thick) + " cm grub.", f(r.areaW, 1) + " m²", "ok. " + r.pieces + " szt., " + f(Math.ceil(r.pallets * 10) / 10, 1) + " palety; wymiar " + f(r.KX, 2) + " × " + f(r.KY, 2) + " m");
+    if (r.curb.sides.length) add("Obrzeże betonowe", fcm(r.curb.L) + " cm × " + fcm(r.curb.t) + " cm", r.curb.pcs + " szt.", f(r.curb.mb, 2) + " mb");
+    if (p.oLaw && r.curb.sides.length) add("Beton półsuchy pod obrzeże", "", f(r.curb.lawV, 2) + " m³", "ok. " + r.curb.lawBags + " worków 25 kg");
+    add("Kruszywo 0–31,5 mm", "", f(r.baseLoose, 2) + " m³", "ok. " + f(r.baseLoose * 1.6, 1) + " t, luzem");
+    add("Piasek na podsypkę", "", f(r.bedLoose, 2) + " m³", "luzem");
+    add("Cement", "worki 25 kg", Math.ceil(r.cementKg / 25) + " szt.", "do podsypki 1:4");
+    // fundamenty
+    cat("Fundamenty");
+    add("Kotwy / marki słupków", fcm(p.s) + " × " + fcm(p.s) + " cm", r.pts.length + " szt.", "");
+    add("Suchy beton B20", "worki 25 kg", r.footBags + " szt.", f(r.footV, 2) + " m³, stopy " + fcm(p.foot) + " × " + fcm(p.foot) + " × " + fcm(p.depth) + " cm");
+    // drewno: wszystko z tartaku, przekrój → długość (z zapasem, w górę do 10 cm)
+    var tim = {};
+    function wood(dim, b, h, len, n, what) {
+      var L = Math.ceil((len + p.cut) * 10 - 1e-6) / 10, k = dim + "|" + L.toFixed(1);
+      if (!tim[k]) tim[k] = { dim: dim, b: b, h: h, len: L, n: 0, what: [] };
+      tim[k].n += n; if (tim[k].what.indexOf(what) < 0) tim[k].what.push(what);
+    }
+    var secB = { k: [p.kb, p.kh], b: [p.bb, p.bh], z: [p.zb, p.zh], d: [p.db, p.dh], l: [p.lb, p.lh], s: [p.s, p.s] };
+    if (R) R.els.forEach(function (e) { var bh = secB[e.sec]; wood(secTxt(r, e.sec), bh[0], bh[1], e.len, e.n, e.name.replace(/ \(.*\)$/, "")); });
+    else wood(fcm(p.s) + " × " + fcm(p.s), p.s, p.s, p.ph, r.pts.length, "Słupki");
+    if (r.wood && r.wood.slats) {
+      r.wood.slats.list.forEach(function (x) { wood("5 × 7", 0.05, 0.07, x.len, x.n, "Łaty drewutni"); });
+      wood(fcm(p.mt) + " × " + fcm(p.mw), p.mt, p.mw, r.wood.slats.mount.len, r.wood.slats.mount.n, "Łaty montażowe");
+    }
+    var Wc = r.wallC && !r.wallC.err ? r.wallC : null;
+    if (Wc) {
+      Wc.mountList.forEach(function (x) { wood(fcm(p.mt) + " × " + fcm(p.mw), p.mt, p.mw, x.len, x.n, "Łaty montażowe"); });
+      Wc.rygle.forEach(function (x) { wood("5 × 7", 0.05, 0.07, x.len, x.n, "Rygle"); });
+    }
+    var tl = Object.keys(tim).map(function (k) { return tim[k]; }).sort(function (a, b) { return (b.b * b.h - a.b * a.h) || (a.dim < b.dim ? -1 : a.dim > b.dim ? 1 : 0) || b.len - a.len; });
+    if (tl.length) {
+      cat("Drewno – tartak (na wymiar)");
+      var m3 = 0;
+      tl.forEach(function (t) { m3 += t.b * t.h * t.len * t.n; add(t.what.join(", "), t.dim + " cm", t.n + " szt.", "po " + fcm(t.len) + " cm"); });
+      add("Drewno razem", "", f(m3, 3) + " m³", "");
+    }
+    // boazeria
+    var Bz = r.boaz && r.boaz.pack ? r.boaz : null;
+    if (Bz || (Wc && Wc.pack)) {
+      cat("Boazeria (paczki po " + (Bz ? Bz.pp : Wc.cfg.pp) + " szt.)");
+      if (Bz) Bz.pack.packs.forEach(function (x) { add("Boazeria na dach", fcm(Bz.w) + " cm × " + f(x.len, 1) + " m", plural(x.packs, "paczka", "paczki", "paczek"), x.pcs + " szt." + (x.pcs > x.need ? ", zostanie " + (x.pcs - x.need) : "")); });
+      if (Wc && Wc.pack) Wc.pack.packs.forEach(function (x) { add("Boazeria na ściany", fcm(Wc.cfg.w) + " cm × " + f(x.len, 1) + " m", plural(x.packs, "paczka", "paczki", "paczek"), x.pcs + " szt." + (x.pcs > x.need ? ", zostanie " + (x.pcs - x.need) : "")); });
+    }
+    // pokrycie i obróbki
+    var Cv = r.cover && !r.cover.err ? r.cover : null;
+    if (Cv || (R && R.vergeLen > 0)) {
+      cat("Pokrycie i obróbki – " + coverColorName());
+      if (Cv && Cv.type === "gont") {
+        add("Gont bitumiczny", "paczka " + f(Cv.packM2, 1) + " m²", plural(Cv.packs, "paczka", "paczki", "paczek"), f(Cv.area, 2) + " m² + " + f(Cv.waste * 100, 0) + "% zapasu");
+        if (Cv.ridge + Cv.hips > 0) add("Gonty kalenicowe", "", f(Cv.ridge + Cv.hips, 2) + " mb", "kalenica i narożniki");
+        add("Papa podkładowa", "rolka " + f(num("cvRoll"), 0) + " m²", plural(Cv.rolls, "rolka", "rolki", "rolek"), "");
+      } else if (Cv) {
+        Cv.sheets.forEach(function (x) { add(Cv.type === "dachowka" ? "Blachodachówka" : "Blacha trapezowa / na rąbek", "krycie " + fcm(Cv.w) + " cm × " + fcm(x.len) + " cm", x.n + " szt.", "połać " + x.plane); });
+        if (Cv.ridge + Cv.hips > 0) add("Gąsior / obróbka kalenicy", "", f(Cv.ridge + Cv.hips, 2) + " mb", "");
+        add("Wkręty farmerskie", "", "ok. " + Cv.screws + " szt.", "");
+        add("Membrana / papa podkładowa", "rolka " + f(num("cvRoll"), 0) + " m²", plural(Cv.rolls, "rolka", "rolki", "rolek"), "");
+      }
+      if (Cv) add("Okapnik", "", f(Cv.eave, 2) + " mb", "");
+      if (Cv && R.type === "mono") add("Obróbka górnej krawędzi", "", f(Cv.eave, 2) + " mb", "");
+      if (R && R.vergeLen > 0) add("Okucie boczne (obróbka szczytów)", "", f(R.vergeLen, 2) + " mb", "na łacie przy krawędzi");
+    }
+    if (r.wood && r.wood.latLen > 0) { cat("Drewutnia"); add("Kratownica", "wys. " + fcm(p.wH) + " cm", f(r.wood.latM2, 2) + " m²", f(r.wood.latLen, 2) + " mb"); }
+    return rows;
+  }
+  function renderOrder(r) {
+    var rows = orderRows(r);
+    el("orderTbl").innerHTML = rows.map(function (x) {
+      if (x.cat) return '<tr class="cat"><td colspan="4">' + x.cat + "</td></tr>";
+      return '<tr><td class="l">' + x.name + '</td><td class="l mono">' + x.dim + "</td><td>" + x.qty + '</td><td class="l">' + x.note + "</td></tr>";
+    }).join("");
+    return rows;
+  }
+  function orderTSV(sep) {
+    var r = compute(); if (r.bad) return "";
+    r.roof && (r.boaz = boazCalc(r)); r.cover = r.roof ? coverCalc(r) : null; r.wallC = wallCalc(r);
+    var q = function (v) { v = String(v).replace(/<[^>]+>/g, ""); return sep === "," ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var out = [["Dział", "Materiał", "Wymiar", "Ilość", "Uwagi"].map(q).join(sep)], c = "";
+    orderRows(r).forEach(function (x) { if (x.cat) { c = x.cat; return; } out.push([c, x.name, x.dim, x.qty, x.note].map(q).join(sep)); });
+    return (projName() ? projName() + "\n" : "") + out.join("\n");
+  }
+  el("orderCopy").addEventListener("click", function () {
+    var t = orderTSV("\t"), msg = el("orderMsg");
+    try { navigator.clipboard.writeText(t).then(function () { msg.textContent = "Skopiowano. Wklej do Excela albo arkusza Google."; }, function () { msg.textContent = "Nie udało się skopiować."; }); }
+    catch (e) { msg.textContent = "Nie udało się skopiować."; }
+  });
+  el("orderCsv").addEventListener("click", function () {
+    var n = (projName() || "altana").replace(/[^\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]+/g, "").trim().replace(/\s+/g, "-");
+    saveFile(n + "-zamowienie.csv", "﻿" + orderTSV(",")).then(function (res) { el("orderMsg").textContent = res === "saved" ? "Zapisano plik CSV." : SAVE_MSG[res]; });
+  });
+
   // ---------- eksport do PDF ----------
   var LIBS = [
     "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
@@ -3170,7 +3289,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       if (!el("coverCard").hidden) parts.push(el("coverCard"));
       if (!el("wallCard").hidden) parts.push(el("wallCard"));
       if (!el("woodCard").hidden) parts.push(el("woodCard"));
-      parts.push(el("tbl").closest(".card"), el("steps").closest(".card"));
+      parts.push(el("orderCard"), el("tbl").closest(".card"), el("steps").closest(".card"));
 
       var pdf = new window.jspdf.jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
       var PW = 210, PH = 297, MG = 12, CW = PW - 2 * MG, y = MG, GAP = 5;

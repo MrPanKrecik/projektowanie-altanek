@@ -31,6 +31,7 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
   urządzenie), plik `.json` do pobrania i wczytania.
 - **Wizualizacja 3D** – obracany model z kostką, obrzeżem, słupkami, drzwiami, drewutnią, więźbą
   i pokryciem dachu (pokrycie można schować, żeby zobaczyć krokwie).
+- **Zamówienie** – jedna tabela ze wszystkim do kupienia (kostka, fundamenty, drewno z tartaku według przekrojów i długości, boazeria w paczkach, pokrycie i obróbki), do skopiowania do Excela albo pobrania jako CSV.
 - **Rzut z góry** z wymiarami, instrukcja wytyczenia w terenie, lista zakupów do schowka i **eksport do PDF**.
 
 ## Uruchomienie
