@@ -1003,7 +1003,20 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       }
     }
 
-    // deski czołowe na okapach i wiatrownice na szczytach
+    // zasięg pokrycia: na szczytach boazeria (a z nią pokrycie) wychodzi poza skrajne krokwie o zadane wysunięcie
+    var cover = { x0: x0, x1: x1, y0: y0, y1: y1 };
+    if (p.roof !== "hip" && p.vov !== null && planes[0].rafts.length) {
+      var us0 = planes[0].rafts.map(function (a) { return a.u; }).sort(function (a, b) { return a - b; });
+      var lo = us0[0] - p.kb / 2 - p.vov, hi = us0[us0.length - 1] + p.kb / 2 + p.vov;
+      if (planes[0].edge[0][1] === planes[0].edge[1][1]) { cover.x0 = lo; cover.x1 = hi; } else { cover.y0 = lo; cover.y1 = hi; }
+    }
+    function stretch(q) { return [q[0] === x0 ? cover.x0 : q[0] === x1 ? cover.x1 : q[0], q[1] === y0 ? cover.y0 : q[1] === y1 ? cover.y1 : q[1]]; }
+    R.cover = cover;
+    R.coverPlanes = R.planes.map(function (poly) { return poly.map(stretch); });
+    R.RW = cover.x1 - cover.x0; R.RD = cover.y1 - cover.y0;
+    R.area = R.RW * R.RD / c;
+
+    // deski czołowe na okapach (na całą szerokość pokrycia) i łaty na szczytach
     function board(name, a, b, kind) {
       R.boards.push({ a: a, b: b, kind: kind });
       add(name, "d", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
@@ -1013,7 +1026,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       R.boards.push({ a: a, b: b, kind: "lath" });
       add("Łata na szczycie", "l", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
     }
-    planes.forEach(function (pl) { board("Deska czołowa (okapowa)", pl.edge[0], pl.edge[1], "fascia"); });
+    planes.forEach(function (pl) { board("Deska czołowa (okapowa)", stretch(pl.edge[0]), stretch(pl.edge[1]), "fascia"); });
     var edges = { front: PL.front.edge, back: PL.back.edge, left: PL.left.edge, right: PL.right.edge };
     Object.keys(edges).forEach(function (k) {
       if (keys.indexOf(k) >= 0 || p.roof === "hip") return;
@@ -1023,7 +1036,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var mid = p.rDir === "par" ? [e[0][0], ridgeA[1]] : [ridgeA[0], e[0][1]];
         lath(e[0], mid); lath(e[1], mid);
       } else if ((k === "front" && keys[0] === "back") || (k === "back" && keys[0] === "front") || (k === "left" && keys[0] === "right") || (k === "right" && keys[0] === "left")) {
-        board("Deska czołowa (górna krawędź)", e[0], e[1], "fascia");
+        board("Deska czołowa (górna krawędź)", stretch(e[0]), stretch(e[1]), "fascia");
       } else lath(e[0], e[1]);
     });
 
@@ -1324,6 +1337,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       door: el("door").checked, dWall: el("dWall").value, dW: num("dW") / 100, dMid: el("dMid").checked, dOff: num("dOff") / 100,
       wood: el("wood").checked, wWall: el("wWall").value, wMode: el("wMode").value, wD: num("wD") / 100, wH: num("wH") / 100,
       wFull: el("wFull").checked, wOff: num("wOff") / 100, wLen: num("wLen") / 100,
+      vov: el("boaz").checked ? num("bzO") / 100 : null,
       oF: el("oF").checked, oB: el("oB").checked, oL: el("oL").checked, oR: el("oR").checked,
       roof: el("roof").value, ang: num("ang"), rDir: el("rDir").value, sDir: el("sDir").value,
       ov: num("ov") / 100, ext: num("ext") / 100, extSup: el("extSup").value, rs: num("rs") / 100, ph: num("ph") / 100,
@@ -1715,7 +1729,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   }
   function roofRows(r) {
     var p = r.p, R = r.roof, out = [];
-    out.push(row("Rzut dachu<small>z okapami i daszkiem</small>", fcm(R.RW) + " × " + fcm(R.RD) + " cm"));
+    out.push(row("Rzut pokrycia<small>z okapami, daszkiem i wysunięciem boazerii</small>", fcm(R.RW) + " × " + fcm(R.RD) + " cm"));
     out.push(row("Powierzchnia połaci<small>do zamówienia pokrycia</small>", f(R.area, 2) + " m²"));
     out.push(row("Daszek przed frontem<small>" + (r.Ep > 0 ? "na słupkach " + ids(r.extPts) : "bez słupków") + "</small>", fcm(R.F) + " cm"));
     out.push(row("Rozstaw krokwi<small>w osiach, maks. " + fcm(p.rs) + " cm</small>", fcm(R.spacing) + " cm"));
@@ -1751,7 +1765,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var R = r.roof;
     // zasięg rysunku: kostka albo dach, jeśli wystaje poza kostkę
     var ex0 = 0, ex1 = r.KX, ey0 = 0, ey1 = r.KY;
-    if (R) { ex0 = Math.min(0, R.x0 + r.ox); ex1 = Math.max(r.KX, R.x1 + r.ox); ey0 = Math.min(0, R.y0 + r.oy); ey1 = Math.max(r.KY, R.y1 + r.oy); }
+    if (R) { var cv = R.cover; ex0 = Math.min(0, cv.x0 + r.ox); ex1 = Math.max(r.KX, cv.x1 + r.ox); ey0 = Math.min(0, cv.y0 + r.oy); ey1 = Math.max(r.KY, cv.y1 + r.oy); }
     var k = (W - padL - padR) / (ex1 - ex0);
     var H = Math.round(padT + padB + (ey1 - ey0) * k);
     function X(x) { return padL + (x - ex0) * k; }
@@ -1794,7 +1808,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       function ln(a, cls) { return '<line x1="' + GX(a[0]).toFixed(1) + '" y1="' + GY(a[1]).toFixed(1) + '" x2="' + GX(a[2]).toFixed(1) + '" y2="' + GY(a[3]).toFixed(1) + '" class="' + cls + '"/>'; }
       (R.ties || []).forEach(function (a) { o.push(ln(a, "svg-tie")); });
       R.rafters.forEach(function (a) { o.push(ln(a, "svg-rafter")); });
-      o.push(rectPts({ x: R.x0, y: R.y0 }, { x: R.x1, y: R.y1 }, "svg-roof"));
+      o.push(rectPts({ x: R.cover.x0, y: R.cover.y0 }, { x: R.cover.x1, y: R.cover.y1 }, "svg-roof"));
       if (R.ridge) o.push(ln(R.ridge, "svg-ridge"));
       R.hips.forEach(function (a) { o.push(ln(a, "svg-ridge")); });
       if (R.arrow) {
@@ -2217,7 +2231,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       });
       if (el("v3roof").checked) {
         var lift = kh / R.c + 0.025, pos = [];
-        R.planes.forEach(function (poly) {
+        R.coverPlanes.forEach(function (poly) {
           for (var i = 1; i < poly.length - 1; i++) [poly[0], poly[i], poly[i + 1]].forEach(function (q) {
             var v = V(q[0], q[1], Z(q[0], q[1]) + lift); pos.push(v.x, v.y, v.z);
           });
