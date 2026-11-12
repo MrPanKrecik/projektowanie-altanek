@@ -2313,6 +2313,20 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     }
     return wrapTex(cv, w, h, 0.45, 0.35);
   }
+  // wysokość przetłoczenia blachy (m) w punkcie: u = wzdłuż okapu, sl = po skosie od okapu
+  function reliefH(type, u, sl) {
+    if (type === "blacha") {
+      var x = ((u % 0.25) + 0.25) % 0.25;                  // przetłoczenie co 25 cm, wysokość 2,5 cm
+      if (x < 0.015) return 0.025 * x / 0.015;
+      if (x < 0.045) return 0.025;
+      if (x < 0.06) return 0.025 * (0.06 - x) / 0.015;
+      return 0.002 * Math.sin((x - 0.06) / 0.19 * Math.PI);
+    }
+    // blachodachówka: fala co 18,3 cm (1,2 cm) + schodek co 35 cm (2,8 cm, krawędź od strony okapu)
+    var wave = 0.012 * (0.5 + 0.5 * Math.cos(2 * Math.PI * u / 0.183));
+    var t = ((sl % 0.35) + 0.35) % 0.35 / 0.35;
+    return wave + 0.028 * (1 - t);
+  }
   function wrapTex(cv, w, h, rough, metal) {
     var tx = new THREE.CanvasTexture(cv);
     tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
@@ -2465,11 +2479,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           var sg = alongY ? (Math.abs(b.a[0] - cv.x0) < 1e-9 ? 1 : -1) : (Math.abs(b.a[1] - cv.y0) < 1e-9 ? 1 : -1);
           function off(q, d) { return alongY ? [q[0] + sg * d, q[1]] : [q[0], q[1] + sg * d]; }
           // łata pod boazerią przy samej krawędzi (widoczna od spodu); okucie zachodzi na pokrycie i schodzi po boku do dołu łaty
-          var under = kh / R.c, coverTop = under + 0.03;
+          var cvT0 = el("cvType").value, under = kh / R.c, coverTop = under + 0.03 + (cvT0 === "blacha" || cvT0 === "dachowka" ? 0.04 : 0);
           var a1 = off(b.a, p.lb / 2), b1 = off(b.b, p.lb / 2);
           bar(V(a1[0], a1[1], Z(b.a[0], b.a[1]) + under - p.lh), V(b1[0], b1[1], Z(b.b[0], b.b[1]) + under - p.lh), p.lb, p.lh, mRaft);
           if (el("v3roof").checked) {
-            var a2 = off(b.a, -0.004), b2 = off(b.b, -0.004), hFace = p.lh + 0.03 + 0.02;
+            var a2 = off(b.a, -0.004), b2 = off(b.b, -0.004), hFace = p.lh + 0.01 + coverTop - under + 0.01;
             bar(V(a2[0], a2[1], Z(b.a[0], b.a[1]) + under - p.lh - 0.01), V(b2[0], b2[1], Z(b.b[0], b.b[1]) + under - p.lh - 0.01), 0.008, hFace, mFlash);
             var a3 = off(b.a, 0.04), b3 = off(b.b, 0.04);
             bar(V(a3[0], a3[1], Z(b.a[0], b.a[1]) + coverTop), V(b3[0], b3[1], Z(b.b[0], b.b[1]) + coverTop), 0.088, 0.006, mFlash);
@@ -2480,20 +2494,56 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         bar(V(b.a[0], b.a[1], Z(b.a[0], b.a[1]) + top - p.dh), V(b.b[0], b.b[1], Z(b.b[0], b.b[1]) + top - p.dh), p.db, p.dh, mBoard);
       });
       if (el("v3roof").checked) {
-        var lift = kh / R.c + 0.025, pos = [], uv = [], T = roofTexture(el("cvType").value);
+        var lift = kh / R.c + 0.025, cvT = el("cvType").value, T = roofTexture(cvT), relief = cvT === "blacha" || cvT === "dachowka";
+        var mCover = new THREE.MeshStandardMaterial({ map: T.tex, side: THREE.DoubleSide, roughness: T.rough, metalness: T.metal, emissive: 0x161718 });
         R.planeData.forEach(function (pd) {
-          var poly = pd.cpoly;
-          for (var i = 1; i < poly.length - 1; i++) [poly[0], poly[i], poly[i + 1]].forEach(function (q) {
-            var v = V(q[0], q[1], Z(q[0], q[1]) + lift); pos.push(v.x, v.y, v.z);
-            // u wzdłuż okapu, v w górę połaci (po skosie), w metrach / wymiar modułu
-            uv.push((pd.horiz ? q[0] : q[1]) / T.w, Math.abs((pd.horiz ? q[1] : q[0]) - pd.edge) / R.c / T.h);
+          // siatka na połaci: kolumny wzdłuż okapu, wiersze w górę połaci (do kalenicy albo krokwi narożnej)
+          var u0 = Math.min(pd.ceave[0], pd.ceave[1]), u1 = Math.max(pd.ceave[0], pd.ceave[1]);
+          var du = cvT === "blacha" ? 0.0075 : cvT === "dachowka" ? 0.012 : (u1 - u0) / 2;
+          var nu = Math.max(1, Math.ceil((u1 - u0) / du)), runs = [], maxRun = 0;
+          for (var i = 0; i <= nu; i++) { var rr = runAt(pd, u0 + (u1 - u0) * i / nu); runs.push(rr); maxRun = Math.max(maxRun, rr); }
+          var nv = cvT === "dachowka" ? Math.max(1, Math.ceil(maxRun / R.c / 0.0175)) : 1;
+          var pos = [], uv = [], idx = [];
+          for (i = 0; i <= nu; i++) {
+            var u = u0 + (u1 - u0) * i / nu;
+            for (var j = 0; j <= nv; j++) {
+              var d = runs[i] * j / nv, sl = d / R.c;
+              var q = pd.horiz ? [u, pd.edge + pd.n[1] * d] : [pd.edge + pd.n[0] * d, u];
+              var hgt = relief ? reliefH(cvT, u - u0, sl) : 0;
+              var v = V(q[0], q[1], Z(q[0], q[1]) + lift + hgt / R.c); pos.push(v.x, v.y, v.z);
+              uv.push(u / T.w, sl / T.h);
+            }
+          }
+          for (i = 0; i < nu; i++) for (var j2 = 0; j2 < nv; j2++) {
+            var a = i * (nv + 1) + j2, b = a + nv + 1;
+            idx.push(a, b, a + 1, b, b + 1, a + 1);
+          }
+          var geo = new THREE.BufferGeometry();
+          geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+          geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+          geo.setIndex(idx);
+          geo.computeVertexNormals();
+          mesh(geo, mCover);
+        });
+        // okucie kalenicy (i naroży przy dachu czterospadowym): blacha zgięta pod kątem połaci, ok. 15 cm na każdą stronę
+        var capLift = lift + (relief ? 0.045 : 0.008), capW = 0.15 * R.c, capPos = [];
+        var capLines = [];
+        if (R.coverRidge) capLines.push([R.coverRidge[0], R.coverRidge[1]]);
+        R.hips.forEach(function (h) { capLines.push([[h[0], h[1]], [h[2], h[3]]]); });
+        capLines.forEach(function (ln) {
+          var A = ln[0], B = ln[1], L = Math.hypot(B[0] - A[0], B[1] - A[1]); if (L < 0.01) return;
+          var px = -(B[1] - A[1]) / L * capW, py = (B[0] - A[0]) / L * capW;
+          [1, -1].forEach(function (sg) {
+            var A2 = [A[0] + sg * px, A[1] + sg * py], B2 = [B[0] + sg * px, B[1] + sg * py];
+            [A, B, B2, A, B2, A2].forEach(function (q) { var v = V(q[0], q[1], Z(q[0], q[1]) + capLift); capPos.push(v.x, v.y, v.z); });
           });
         });
-        var geo = new THREE.BufferGeometry();
-        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-        geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-        geo.computeVertexNormals();
-        mesh(geo, new THREE.MeshStandardMaterial({ map: T.tex, side: THREE.DoubleSide, roughness: T.rough, metalness: T.metal, emissive: 0x161718 }));
+        if (capPos.length) {
+          var cg = new THREE.BufferGeometry();
+          cg.setAttribute("position", new THREE.Float32BufferAttribute(capPos, 3));
+          cg.computeVertexNormals();
+          mesh(cg, new THREE.MeshStandardMaterial({ color: 0x3a434b, side: THREE.DoubleSide, roughness: 0.45, metalness: 0.35, emissive: 0x111315 }));
+        }
         // boazeria pod pokryciem: od spodu widać deski ułożone wzdłuż okapu
         var bw = parseFloat(el("bzW").value) / 100 || 0.1, pos2 = [], uv2 = [];
         R.planeData.forEach(function (pd) {
