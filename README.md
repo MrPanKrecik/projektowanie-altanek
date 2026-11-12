@@ -18,7 +18,7 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
 - **Dach i więźba** – dach jedno-, dwu- lub czterospadowy z okapem i daszkiem wysuniętym nad wejściem
   (na wspornikach albo na dodatkowych słupkach): krokwie, krokwie narożne i kulawe, jętki, oczepy, belki poprzeczne między słupkami,
   płatew kalenicowa, długości słupków, powierzchnia połaci, deski czołowe, łaty i okucie boczne na krawędziach szczytów, m³ drewna i zamówienie na wymiar do tartaku.
-- **Pokrycie dachu** – gont bitumiczny (paczki z zapasem, gąsiory, papa podkładowa) albo blacha w arkuszach
+- **Pokrycie dachu** – gont bitumiczny (paczki z zapasem, gąsiory, papa podkładowa) , blachodachówka albo blacha trapezowa/na rąbek w arkuszach
   o zadanej szerokości krycia (lista arkuszy na wymiar, gąsior, wkręty, membrana), do tego okapnik i okucie boczne.
 - **Boazeria na dach** – liczba rzędów na każdej połaci, układ desek z łączeniami tylko na krokwiach
   (na mijankę), zakup na wymiar (0,7–5 m) w pełnych paczkach albo z długości dostępnych w składzie, lista zakupu

@@ -362,7 +362,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <label>Rodzaj pokrycia
           <select id="cvType">
             <option value="gont">Gont bitumiczny</option>
-            <option value="blacha">Blacha w arkuszach</option>
+            <option value="dachowka">Blachodachówka (arkusze)</option>
+            <option value="blacha">Blacha trapezowa / na rąbek</option>
             <option value="none">Nie licz pokrycia</option>
           </select>
         </label>
@@ -1232,7 +1233,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       el("coverTblWrap").hidden = true;
       el("coverNote").textContent = "Gont kładzie się na boazerii przykrytej papą podkładową. Na gąsiory wiele firm sprzedaje osobne gonty kalenicowe, a część ludzi tnie je ze zwykłych pasów. Wtedy dolicz około jednej paczki na każde 10–12 mb kalenicy.";
     } else {
-      el("coverTag").textContent = "blacha, krycie " + fcm(C.w) + " cm";
+      el("coverTag").textContent = (C.type === "dachowka" ? "blachodachówka" : "blacha trapezowa / na rąbek") + ", krycie " + fcm(C.w) + " cm";
       m.push(row("Arkusze blachy<small>na wymiar, od okapu do kalenicy</small>", plural(C.nSheets, "arkusz", "arkusze", "arkuszy") + " · " + f(C.sheetM2, 2) + " m²"));
       if (C.ridge + C.hips > 0) m.push(row("Gąsior / obróbka kalenicy<small>kalenica i narożniki</small>", f(C.ridge + C.hips, 2) + " mb"));
       m.push(row("Wkręty farmerskie<small>ok. " + f(num("cvScr"), 0) + " na m²</small>", "ok. " + C.screws + " szt."));
@@ -1735,7 +1736,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("boazFs").hidden = !rOn;
     el("coverFs").hidden = !rOn;
     var cvT = el("cvType").value;
-    el("cvGont").hidden = cvT !== "gont"; el("cvBlacha").hidden = cvT !== "blacha"; el("cvRollWrap").hidden = cvT === "none";
+    el("cvGont").hidden = cvT !== "gont"; el("cvBlacha").hidden = cvT !== "blacha" && cvT !== "dachowka"; el("cvRollWrap").hidden = cvT === "none";
     ["boazBox1", "boazBox4", "boazHint2", "boazBox3"].forEach(function (id) { el(id).hidden = !el("boaz").checked; });
     ["boazBox2", "boazHint"].forEach(function (id) { el(id).hidden = !el("boaz").checked || el("bzMode").value !== "list"; });
     el("jetkiWrap").hidden = rf !== "gable" || el("ridge").checked;
@@ -2146,7 +2147,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       var Cv = coverCalc(r);
       if (Cv && !Cv.err) {
         if (Cv.type === "gont") L.push("  Gont bitumiczny: " + plural(Cv.packs, "paczka", "paczki", "paczek") + " (" + f(Cv.area, 2) + " m² + zapas), gąsiory " + f(Cv.ridge + Cv.hips, 2) + " mb, papa " + plural(Cv.rolls, "rolka", "rolki", "rolek"));
-        else L.push("  Blacha (krycie " + fcm(Cv.w) + " cm): " + Cv.sheets.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", ") + "; gąsior " + f(Cv.ridge + Cv.hips, 2) + " mb, wkręty ok. " + Cv.screws + ", membrana " + plural(Cv.rolls, "rolka", "rolki", "rolek"));
+        else L.push("  " + (Cv.type === "dachowka" ? "Blachodachówka" : "Blacha") + " (krycie " + fcm(Cv.w) + " cm): " + Cv.sheets.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", ") + "; gąsior " + f(Cv.ridge + Cv.hips, 2) + " mb, wkręty ok. " + Cv.screws + ", membrana " + plural(Cv.rolls, "rolka", "rolki", "rolek"));
         L.push("  Okapnik: " + f(Cv.eave, 2) + " mb");
       }
       if (Bz && Bz.pack) {
@@ -2254,6 +2255,69 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   function tokenColor(name, fallback) {
     var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     return v || fallback;
+  }
+
+
+  // ---------- tekstury pokrycia (rysowane w canvasie, w skali 1:1 z modułem pokrycia) ----------
+  function rng(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+  function roofTexture(type) {
+    var cv = document.createElement("canvas"), g, W, H, w, h;
+    if (type === "gont") {
+      // gont: 6 rzędów po 14,3 cm, płytki 12–34 cm w odcieniach szarości, cień pod każdym rzędem
+      w = 1.0; h = 0.858; W = 512; H = 440; cv.width = W; cv.height = H; g = cv.getContext("2d");
+      var r = rng(7), rowH = H / 6;
+      g.fillStyle = "#26282b"; g.fillRect(0, 0, W, H);
+      for (var row = 0; row < 6; row++) {
+        var y = row * rowH, x = -r() * 120;
+        while (x < W) {
+          var tw = (0.12 + r() * 0.22) * W, l = 48 + Math.floor(r() * 52);
+          var col = "rgb(" + l + "," + (l + 2) + "," + (l + 6) + ")";
+          [x, x - W, x + W].forEach(function (xx) { g.fillStyle = col; g.fillRect(xx + 1, y + 1, tw - 2, rowH - 2); });
+          x += tw;
+        }
+        // cień pod zakładem rzędu
+        var gr = g.createLinearGradient(0, y + rowH * 0.78, 0, y + rowH);
+        gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,0.55)");
+        g.fillStyle = gr; g.fillRect(0, y + rowH * 0.78, W, rowH * 0.22);
+      }
+      // ziarno posypki
+      var img = g.getImageData(0, 0, W, H), d = img.data;
+      for (var k = 0; k < d.length; k += 4) { var n = (r() - 0.5) * 34; d[k] += n; d[k + 1] += n; d[k + 2] += n; }
+      g.putImageData(img, 0, 0);
+      return wrapTex(cv, w, h, 0.95, 0);
+    }
+    if (type === "dachowka") {
+      // blachodachówka: 2 fale po 18,3 cm w poprzek, moduł 35 cm wzdłuż połaci ze schodkiem na dole
+      w = 0.366; h = 0.35; W = 256; H = 256; cv.width = W; cv.height = H; g = cv.getContext("2d");
+      var im = g.createImageData(W, H), dd = im.data;
+      for (var yy = 0; yy < H; yy++) for (var xx = 0; xx < W; xx++) {
+        var wave = Math.cos(xx / W * 4 * Math.PI);            // fale: grzbiet jasny, dolina ciemna
+        var t = yy / H;                                        // 0 = góra modułu, 1 = dół (schodek)
+        var slope = t < 0.86 ? 0.15 * t : -0.75 * (t - 0.86) / 0.14;   // łagodny spadek i ostry cień schodka
+        var lv = 46 + 26 * wave + 60 * slope;
+        if (t > 0.86 && t < 0.9) lv += 30;                     // błysk na krawędzi schodka
+        var o = (yy * W + xx) * 4; dd[o] = lv; dd[o + 1] = lv + 2; dd[o + 2] = lv + 6; dd[o + 3] = 255;
+      }
+      g.putImageData(im, 0, 0);
+      return wrapTex(cv, w, h, 0.45, 0.35);
+    }
+    // blacha trapezowa / na rąbek: przetłoczenie co 25 cm, wzdłuż spadku
+    w = 0.25; h = 1; W = 256; H = 8; cv.width = W; cv.height = H; g = cv.getContext("2d");
+    for (var x2 = 0; x2 < W; x2++) {
+      var u = x2 / W, l2 = 66;
+      if (u < 0.05) l2 = 120;              // jasna ściana przetłoczenia
+      else if (u < 0.1) l2 = 96;           // grzbiet
+      else if (u < 0.15) l2 = 40;          // cień
+      else l2 = 66 + 6 * Math.sin(u * 40);  // płaski pas z lekkim przetłoczeniem
+      g.fillStyle = "rgb(" + l2 + "," + (l2 + 4) + "," + (l2 + 8) + ")"; g.fillRect(x2, 0, 1, H);
+    }
+    return wrapTex(cv, w, h, 0.45, 0.35);
+  }
+  function wrapTex(cv, w, h, rough, metal) {
+    var tx = new THREE.CanvasTexture(cv);
+    tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+    tx.anisotropy = 8;
+    return { tex: tx, w: w, h: h, rough: rough, metal: metal };
   }
 
   function build3d(r) {
@@ -2400,14 +2464,15 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           var cv = R.cover, alongY = Math.abs(b.a[0] - b.b[0]) < 1e-9;
           var sg = alongY ? (Math.abs(b.a[0] - cv.x0) < 1e-9 ? 1 : -1) : (Math.abs(b.a[1] - cv.y0) < 1e-9 ? 1 : -1);
           function off(q, d) { return alongY ? [q[0] + sg * d, q[1]] : [q[0], q[1] + sg * d]; }
-          var onB = kh / R.c + 0.025;        // wierzch boazerii z pokryciem
+          // łata pod boazerią przy samej krawędzi (widoczna od spodu); okucie zachodzi na pokrycie i schodzi po boku do dołu łaty
+          var under = kh / R.c, coverTop = under + 0.03;
           var a1 = off(b.a, p.lb / 2), b1 = off(b.b, p.lb / 2);
-          bar(V(a1[0], a1[1], Z(b.a[0], b.a[1]) + onB), V(b1[0], b1[1], Z(b.b[0], b.b[1]) + onB), p.lb, p.lh, mRaft);
+          bar(V(a1[0], a1[1], Z(b.a[0], b.a[1]) + under - p.lh), V(b1[0], b1[1], Z(b.b[0], b.b[1]) + under - p.lh), p.lb, p.lh, mRaft);
           if (el("v3roof").checked) {
-            var a2 = off(b.a, -0.004), b2 = off(b.b, -0.004);
-            bar(V(a2[0], a2[1], Z(b.a[0], b.a[1]) + onB - 0.06), V(b2[0], b2[1], Z(b.b[0], b.b[1]) + onB - 0.06), 0.008, p.lh + 0.07, mFlash);
-            var a3 = off(b.a, p.lb / 2 - 0.004), b3 = off(b.b, p.lb / 2 - 0.004);
-            bar(V(a3[0], a3[1], Z(b.a[0], b.a[1]) + onB + p.lh), V(b3[0], b3[1], Z(b.b[0], b.b[1]) + onB + p.lh), p.lb + 0.016, 0.006, mFlash);
+            var a2 = off(b.a, -0.004), b2 = off(b.b, -0.004), hFace = p.lh + 0.03 + 0.02;
+            bar(V(a2[0], a2[1], Z(b.a[0], b.a[1]) + under - p.lh - 0.01), V(b2[0], b2[1], Z(b.b[0], b.b[1]) + under - p.lh - 0.01), 0.008, hFace, mFlash);
+            var a3 = off(b.a, 0.04), b3 = off(b.b, 0.04);
+            bar(V(a3[0], a3[1], Z(b.a[0], b.a[1]) + coverTop), V(b3[0], b3[1], Z(b.b[0], b.b[1]) + coverTop), 0.088, 0.006, mFlash);
           }
           return;
         }
@@ -2415,17 +2480,39 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         bar(V(b.a[0], b.a[1], Z(b.a[0], b.a[1]) + top - p.dh), V(b.b[0], b.b[1], Z(b.b[0], b.b[1]) + top - p.dh), p.db, p.dh, mBoard);
       });
       if (el("v3roof").checked) {
-        var lift = kh / R.c + 0.025, pos = [];
-        R.coverPlanes.forEach(function (poly) {
+        var lift = kh / R.c + 0.025, pos = [], uv = [], T = roofTexture(el("cvType").value);
+        R.planeData.forEach(function (pd) {
+          var poly = pd.cpoly;
           for (var i = 1; i < poly.length - 1; i++) [poly[0], poly[i], poly[i + 1]].forEach(function (q) {
             var v = V(q[0], q[1], Z(q[0], q[1]) + lift); pos.push(v.x, v.y, v.z);
+            // u wzdłuż okapu, v w górę połaci (po skosie), w metrach / wymiar modułu
+            uv.push((pd.horiz ? q[0] : q[1]) / T.w, Math.abs((pd.horiz ? q[1] : q[0]) - pd.edge) / R.c / T.h);
           });
         });
         var geo = new THREE.BufferGeometry();
         geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
         geo.computeVertexNormals();
-        var gont = el("cvType").value === "gont";
-        mesh(geo, mat(gont ? 0x3b3d42 : 0x46505a, { side: THREE.DoubleSide, roughness: gont ? 0.95 : 0.5, metalness: gont ? 0 : 0.3, emissive: gont ? 0x1d1f23 : 0x2a3138 }));
+        mesh(geo, new THREE.MeshStandardMaterial({ map: T.tex, side: THREE.DoubleSide, roughness: T.rough, metalness: T.metal, emissive: 0x161718 }));
+        // boazeria pod pokryciem: od spodu widać deski ułożone wzdłuż okapu
+        var bw = parseFloat(el("bzW").value) / 100 || 0.1, pos2 = [], uv2 = [];
+        R.planeData.forEach(function (pd) {
+          var poly = pd.cpoly;
+          for (var i = 1; i < poly.length - 1; i++) [poly[0], poly[i], poly[i + 1]].forEach(function (q) {
+            var v = V(q[0], q[1], Z(q[0], q[1]) + kh / R.c + 0.004); pos2.push(v.x, v.y, v.z);
+            uv2.push((pd.horiz ? q[0] : q[1]) / 2, Math.abs((pd.horiz ? q[1] : q[0]) - pd.edge) / R.c / bw);
+          });
+        });
+        var geo2 = new THREE.BufferGeometry();
+        geo2.setAttribute("position", new THREE.Float32BufferAttribute(pos2, 3));
+        geo2.setAttribute("uv", new THREE.Float32BufferAttribute(uv2, 2));
+        geo2.computeVertexNormals();
+        var boards = document.createElement("canvas"); boards.width = 256; boards.height = 32;
+        var bg = boards.getContext("2d"); bg.fillStyle = "#c9a06a"; bg.fillRect(0, 0, 256, 32);
+        bg.fillStyle = "#8a6438"; bg.fillRect(0, 0, 256, 2);        // pióro-wpust między deskami
+        for (var gi = 0; gi < 40; gi++) { bg.fillStyle = "rgba(120,80,40," + (0.08 + gi % 3 * 0.04) + ")"; bg.fillRect((gi * 37) % 256, 4 + gi % 24, 40 + gi % 30, 1); }
+        var btx = new THREE.CanvasTexture(boards); btx.wrapS = btx.wrapT = THREE.RepeatWrapping;
+        mesh(geo2, new THREE.MeshStandardMaterial({ map: btx, side: THREE.DoubleSide, roughness: 0.85 }), false);
       }
     }
     var top = R ? R.base + R.rise + 0.4 : p.ph + 0.4;
