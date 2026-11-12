@@ -2825,7 +2825,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       });
     }
 
-    // drewutnia: kratownica, górna belka i ułożone drewno
+    // drewutnia: zabudowa ścian i górna belka
     if (r.wood) {
       var w = r.wood;
       var lat = canvasTex(128, 128, function (g, W, H) {
@@ -2885,18 +2885,6 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var f1 = pt(p, w.wall, r.woodLine.pos[0].u, w.t), f2 = pt(p, w.wall, r.woodLine.pos[r.woodLine.pos.length - 1].u, w.t);
         bar(V(f1.x, f1.y, p.ph), V(f2.x, f2.y, p.ph), p.bb, p.bh, mBeam);
       }
-      var logs = canvasTex(256, 256, function (g, W, H) {
-        g.fillStyle = "#6b4a2b"; g.fillRect(0, 0, W, H);
-        for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
-          var x = W / 8 + i * W / 4 + (j % 2 ? W / 16 : 0), y = H / 8 + j * H / 4, rr = W / 9;
-          g.fillStyle = "#c9a26c"; g.beginPath(); g.arc(x, y, rr, 0, 7); g.fill();
-          g.strokeStyle = "#9c7646"; g.lineWidth = 2; g.beginPath(); g.arc(x, y, rr * 0.55, 0, 7); g.stroke();
-        }
-      }, 1, 1);
-      var i1 = pt(p, w.wall, w.u1 + p.s, w.mode === "out" ? -0.02 : p.s), i2 = pt(p, w.wall, w.u2 - p.s, w.mode === "out" ? -(w.D - p.s) : w.D - p.s);
-      var lh = p.wH * 0.75;
-      logs.repeat.set(Math.max(1, Math.abs(i2.x - i1.x) / 0.6), Math.max(1, lh / 0.6));
-      boxAt(Math.min(i1.x, i2.x), Math.min(i1.y, i2.y), Math.max(i1.x, i2.x), Math.max(i1.y, i2.y), 0, lh, mat(0xffffff, { map: logs }));
     }
 
     // więźba i pokrycie
