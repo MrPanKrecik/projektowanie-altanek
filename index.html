@@ -444,6 +444,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <span class="unit" data-u="cm"><input type="number" id="wLen" step="5" min="40" value="150"></span>
           </label>
         </div>
+        <label class="check" id="wRaftWrap"><input type="checkbox" id="wRaft" checked> Krokiew nad słupkami drewutni (do przykręcenia zabudowy nad drewnem)</label>
         <p class="hint" id="woodHint">Głębokość liczysz od zewnętrznej krawędzi ściany altany do zewnętrznej krawędzi słupków drewutni.</p>
       </fieldset>
 
@@ -657,7 +658,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
   var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
     "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
-  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag"];
+  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft"];
   var KEY = "kalkulator-altanki-v9";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
@@ -1550,7 +1551,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 
     // krokwie nad słupkami drewutni: linie słupków drewutni biegnące równolegle do krokwi
     p.raftForce = { x: [], y: [] };
-    if (wood) {
+    if (wood && el("wRaft").checked) {
       var alongWallX = wood.wall === "przód" || wood.wall === "tył";
       var lineXY = pt(p, wood.wall, wood.u1, wood.t);              // linia słupków wzdłuż ściany
       if (alongWallX) p.raftForce.y.push(lineXY.y); else p.raftForce.x.push(lineXY.x);
@@ -1609,7 +1610,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("jetkiWrap").hidden = rf !== "gable" || el("ridge").checked;
     el("ridgeTxt").textContent = rf === "none" ? "Słupek na środku krótszych ścian (pod kalenicę)" : "Płatew i słupki pod kalenicą (zwykle niepotrzebne)";
     var wOn = el("wood").checked;
-    ["woodBox1", "woodBox2", "woodBox3", "woodHint"].forEach(function (id) { el(id).hidden = !wOn; });
+    ["woodBox1", "woodBox2", "woodBox3", "woodHint", "wRaftWrap"].forEach(function (id) { el(id).hidden = !wOn; });
     el("woodBox4").hidden = !wOn || el("wFull").checked;
     var ww = el("wWall").value;
     el("woodHint").textContent = "Głębokość liczysz od zewnętrznej krawędzi ściany altany do zewnętrznej krawędzi słupków drewutni." +
