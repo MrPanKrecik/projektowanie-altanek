@@ -1547,7 +1547,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       Wc.pack.packs.forEach(function (x) { m.push(row("Boazeria " + f(x.len, 1) + " m<small>potrzeba " + x.need + " szt." + (x.pcs > x.need ? ", zostanie " + (x.pcs - x.need) : "") + "</small>", plural(x.packs, "paczka", "paczki", "paczek") + " · " + x.pcs + " szt.")); });
       m.push(row("Razem do kupienia<small>odpad z cięcia " + f((1 - Wc.need / Wc.pack.bought) * 100, 1) + "%" + (left ? ", w paczkach zostanie " + plural(left, "deska", "deski", "desek") : "") + "</small>", plural(Wc.pack.nPacks, "paczka", "paczki", "paczek") + " · " + f(Wc.pack.cost, 1) + " mb"));
     }
-    if (Wc.mountList.length) m.push(row("Łaty montażowe " + fcm(r.p.lb) + " × " + fcm(r.p.lh) + " cm<small>2 na pole, " + plural(Wc.mountN, "pole", "pola", "pól") + ", pionowo przy słupkach</small>", Wc.mountList.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
+    if (Wc.mountList.length) m.push(row("Łaty montażowe " + fcm(r.p.mt) + " × " + fcm(r.p.mw) + " cm<small>2 na pole, " + plural(Wc.mountN, "pole", "pola", "pól") + ", pionowo przy słupkach</small>", Wc.mountList.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
     if (Wc.rygle.length) m.push(row("Rygle 5 × 7 cm<small>do desek pionowych, między słupkami</small>", Wc.rygle.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
     Wc.warn.forEach(function (t) { m.push(row("Uwaga", t)); });
     el("wallMat").innerHTML = m.join("");
@@ -1796,6 +1796,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       wood: el("wood").checked, wWall: el("wWall").value, wMode: el("wMode").value, wD: num("wD") / 100, wH: num("wH") / 100,
       wFull: el("wFull").checked, wOff: num("wOff") / 100, wLen: num("wLen") / 100,
       vov: el("boaz").checked ? num("bzO") / 100 : null,
+      // łaty montażowe: grubość tak, żeby z łatą 5 cm zmieściły się w słupku (12 cm → 3 × 5, 14 cm → 4 × 5)
+      mt: Math.max(0.02, Math.floor((num("post") - 5) / 2 + 1e-6) / 100), mw: 0.05,
       zOn: el("zOn").checked, zArm: num("zArm") / 100, zb: num("zb") / 100, zh: num("zh") / 100,
       oF: el("oF").checked, oB: el("oB").checked, oL: el("oL").checked, oR: el("oR").checked,
       roof: el("roof").value, ang: num("ang"), rDir: el("rDir").value, sDir: el("sDir").value,
@@ -2202,7 +2204,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       wood.faceList.forEach(function (fc) { wr.push(row("Ściana " + fc.name + "<small>" + fcm(fc.len) + " cm</small>", TYPE_N[fc.type])); });
       if (wood.slats) {
         wr.push(row("Łaty 5 × 7 cm do zamówienia<small>między słupkami, na środku słupka, na sztorc, przerwa 7 cm, " + plural(wood.slats.rows, "rząd", "rzędy", "rzędów") + " · " + f(wood.slats.mb, 2) + " mb · " + f(wood.slats.mb * 0.0035, 3) + " m³</small>", wood.slats.list.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
-        wr.push(row("Łaty montażowe " + fcm(p.lb) + " × " + fcm(p.lh) + " cm<small>4 na pole, " + plural(wood.slats.bays, "pole", "pola", "pól") + ": przy każdym słupku po jednej od zewnątrz i od wewnątrz, łaty 5 × 7 na środku słupka</small>", wood.slats.mount.n + " × " + fcm(wood.slats.mount.len) + " cm"));
+        wr.push(row("Łaty montażowe " + fcm(p.mt) + " × " + fcm(p.mw) + " cm<small>4 na pole, " + plural(wood.slats.bays, "pole", "pola", "pól") + ": przy każdym słupku po jednej od zewnątrz i od wewnątrz, łaty 5 × 7 na środku słupka</small>", wood.slats.mount.n + " × " + fcm(wood.slats.mount.len) + " cm"));
       }
       if (wood.latLen > 0) wr.push(row("Kratownica<small>wysokość " + fcm(p.wH) + " cm</small>", f(wood.latLen, 2) + " mb · " + f(wood.latM2, 2) + " m²"));
       if (wood.faceList.some(function (fc) { return fc.type === "boards"; })) wr.push(row("Boazeria", "w karcie „Boazeria na ściany”"));
@@ -2521,7 +2523,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       L.push("Drewutnia (" + (wood.mode === "out" ? "na zewnątrz" : "w środku") + ", ściana " + wood.wall + "): " + fcm(wood.len) + " × " + fcm(wood.D) + " cm, słupki " + ids(r.woodPts));
       if (wood.slats) {
         L.push("Łaty 5×7 cm na zabudowę drewutni (między słupkami): " + wood.slats.list.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", "));
-        L.push("Łaty montażowe " + fcm(p.lb) + "×" + fcm(p.lh) + " cm do łat drewutni (4 na pole): " + wood.slats.mount.n + " × " + fcm(wood.slats.mount.len) + " cm");
+        L.push("Łaty montażowe " + fcm(p.mt) + "×" + fcm(p.mw) + " cm do łat drewutni (4 na pole): " + wood.slats.mount.n + " × " + fcm(wood.slats.mount.len) + " cm");
       }
       if (wood.latLen > 0) L.push("Kratownica: " + f(wood.latLen, 2) + " mb × " + fcm(p.wH) + " cm = " + f(wood.latM2, 2) + " m²");
       L.push("Pojemność drewutni ok. " + f(wood.mp, 1) + " mp drewna");
@@ -2549,7 +2551,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var Wc = wallCalc(r);
     if (Wc && !Wc.err && Wc.pack) {
       L.push("Boazeria na ściany (" + (Wc.mount === "on" ? "na słupkach" : "między słupkami") + ", " + (Wc.ori === "h" ? "poziomo" : "pionowo") + ", " + f(Wc.area, 2) + " m²): " + Wc.pack.packs.map(function (x) { return f(x.len, 1) + " m – " + x.packs + " pacz."; }).join(", "));
-      if (Wc.mountList.length) L.push("Łaty montażowe " + fcm(p.lb) + "×" + fcm(p.lh) + " cm do boazerii (2 na pole): " + Wc.mountList.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", "));
+      if (Wc.mountList.length) L.push("Łaty montażowe " + fcm(p.mt) + "×" + fcm(p.mw) + " cm do boazerii (2 na pole): " + Wc.mountList.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", "));
       if (Wc.rygle.length) L.push("Rygle 5×7 cm: " + Wc.rygle.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", "));
     }
     if (r.braces && r.braces.length) L.push("Zastrzały (miecze) " + fcm(p.zb) + "×" + fcm(p.zh) + " cm: " + r.braces.length + " szt. po " + fcm(Math.ceil((p.zArm * Math.SQRT2 + p.zh) * 100 - 1e-6) / 100) + " cm (ramię " + fcm(p.zArm) + " cm, 45°)");
@@ -2853,9 +2855,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       });
       var mMount = mat(0xc29560);
       Wc3.mountPanels.forEach(function (mp) {
-        [mp.a + p.lb / 2, mp.b - p.lb / 2].forEach(function (u) {
-          var q = pt(p, mp.wall, u, 0.018 + p.lh / 2), along = (mp.wall === "przód" || mp.wall === "tył");
-          var hx = along ? p.lb / 2 : p.lh / 2, hy = along ? p.lh / 2 : p.lb / 2;
+        [mp.a + p.mt / 2, mp.b - p.mt / 2].forEach(function (u) {
+          var q = pt(p, mp.wall, u, 0.018 + p.mw / 2), along = (mp.wall === "przód" || mp.wall === "tył");
+          var hx = along ? p.mt / 2 : p.mw / 2, hy = along ? p.mw / 2 : p.mt / 2;
           boxAt(q.x - hx, q.y - hy, q.x + hx, q.y + hy, mp.zb, mp.zt, mMount);
         });
       });
@@ -2891,10 +2893,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
               bar(V(P1.x + sh.x, P1.y + sh.y, zb), V(P2.x + sh.x, P2.y + sh.y, zb), 0.05, 0.07, mSlat);
             }
             // przy każdym słupku dwie łaty montażowe: przed łatami 5 × 7 i za nimi
-            [bay.a + p.lh / 2, bay.b - p.lh / 2].forEach(function (um) {
-              [-(p.s / 2 - 0.025 - p.lb / 2), -(p.s / 2 + 0.025 + p.lb / 2)].forEach(function (dep) {
+            [bay.a + p.mw / 2, bay.b - p.mw / 2].forEach(function (um) {
+              [-(p.s / 2 - 0.025 - p.mt / 2), -(p.s / 2 + 0.025 + p.mt / 2)].forEach(function (dep) {
                 var sm = shiftOf(fc, A1, A2, dep), cx = A1.x + dx * um + sm.x, cy = A1.y + dy * um + sm.y;
-                var hx = Math.abs(dx) > 0.5 ? p.lh / 2 : p.lb / 2, hy = Math.abs(dx) > 0.5 ? p.lb / 2 : p.lh / 2;
+                var hx = Math.abs(dx) > 0.5 ? p.mw / 2 : p.mt / 2, hy = Math.abs(dx) > 0.5 ? p.mt / 2 : p.mw / 2;
                 boxAt(cx - hx, cy - hy, cx + hx, cy + hy, 0.05, topM, mSlat);
               });
             });
