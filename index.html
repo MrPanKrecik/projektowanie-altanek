@@ -2201,8 +2201,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       var TYPE_N = { open: "otwarta", slats: "łaty 5 × 7 cm", boards: "boazeria (do dachu)", lattice: "kratownica" };
       wood.faceList.forEach(function (fc) { wr.push(row("Ściana " + fc.name + "<small>" + fcm(fc.len) + " cm</small>", TYPE_N[fc.type])); });
       if (wood.slats) {
-        wr.push(row("Łaty 5 × 7 cm do zamówienia<small>między słupkami, na sztorc, przerwa 7 cm, " + plural(wood.slats.rows, "rząd", "rzędy", "rzędów") + " · " + f(wood.slats.mb, 2) + " mb · " + f(wood.slats.mb * 0.0035, 3) + " m³</small>", wood.slats.list.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
-        wr.push(row("Łaty montażowe " + fcm(p.lb) + " × " + fcm(p.lh) + " cm<small>4 na pole, " + plural(wood.slats.bays, "pole", "pola", "pól") + ", pionowo przy słupkach</small>", wood.slats.mount.n + " × " + fcm(wood.slats.mount.len) + " cm"));
+        wr.push(row("Łaty 5 × 7 cm do zamówienia<small>między słupkami, na środku słupka, na sztorc, przerwa 7 cm, " + plural(wood.slats.rows, "rząd", "rzędy", "rzędów") + " · " + f(wood.slats.mb, 2) + " mb · " + f(wood.slats.mb * 0.0035, 3) + " m³</small>", wood.slats.list.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
+        wr.push(row("Łaty montażowe " + fcm(p.lb) + " × " + fcm(p.lh) + " cm<small>4 na pole, " + plural(wood.slats.bays, "pole", "pola", "pól") + ": przy każdym słupku po jednej od zewnątrz i od wewnątrz, łaty 5 × 7 na środku słupka</small>", wood.slats.mount.n + " × " + fcm(wood.slats.mount.len) + " cm"));
       }
       if (wood.latLen > 0) wr.push(row("Kratownica<small>wysokość " + fcm(p.wH) + " cm</small>", f(wood.latLen, 2) + " mb · " + f(wood.latM2, 2) + " m²"));
       if (wood.faceList.some(function (fc) { return fc.type === "boards"; })) wr.push(row("Boazeria", "w karcie „Boazeria na ściany”"));
@@ -2881,8 +2881,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var A1 = pt(p, w.wall, fc.a[0], fc.a[1]), A2 = pt(p, w.wall, fc.b[0], fc.b[1]);
         var len = Math.hypot(A2.x - A1.x, A2.y - A1.y); if (len < 0.05) return;
         if (fc.type === "slats") {
-          // w przęsłach między słupkami, licem do zewnętrznej krawędzi słupków
-          var dx = (A2.x - A1.x) / len, dy = (A2.y - A1.y) / len, sh = shiftOf(fc, A1, A2, -0.025), shM = shiftOf(fc, A1, A2, -0.05 - 0.02);
+          // w przęsłach między słupkami, na środku grubości słupka; łaty montażowe z obu stron (zewnętrznej i wewnętrznej)
+          var dx = (A2.x - A1.x) / len, dy = (A2.y - A1.y) / len, sh = shiftOf(fc, A1, A2, -p.s / 2);
           var topM = 0.05 + w.slats.rows * 0.14 - 0.07;
           fc.bays.forEach(function (bay) {
             var P1 = { x: A1.x + dx * bay.a, y: A1.y + dy * bay.a }, P2 = { x: A1.x + dx * bay.b, y: A1.y + dy * bay.b };
@@ -2890,11 +2890,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
               var zb = 0.05 + ri * 0.14;
               bar(V(P1.x + sh.x, P1.y + sh.y, zb), V(P2.x + sh.x, P2.y + sh.y, zb), 0.05, 0.07, mSlat);
             }
-            // łaty montażowe: przy każdym słupku z obu stron łat
-            [[bay.a + p.lb / 2, 1], [bay.b - p.lb / 2, -1]].forEach(function (m) {
-              [-0.02 - p.lh / 2, -0.05 - 0.02 - p.lh / 2 + 0.02].forEach(function (dep) {
-                var sm = shiftOf(fc, A1, A2, dep - 0.0), cx = A1.x + dx * m[0] + sm.x, cy = A1.y + dy * m[0] + sm.y;
-                var hx = Math.abs(dx) > 0.5 ? p.lb / 2 : p.lh / 2, hy = Math.abs(dx) > 0.5 ? p.lh / 2 : p.lb / 2;
+            // przy każdym słupku dwie łaty montażowe: przed łatami 5 × 7 i za nimi
+            [bay.a + p.lh / 2, bay.b - p.lh / 2].forEach(function (um) {
+              [-(p.s / 2 - 0.025 - p.lb / 2), -(p.s / 2 + 0.025 + p.lb / 2)].forEach(function (dep) {
+                var sm = shiftOf(fc, A1, A2, dep), cx = A1.x + dx * um + sm.x, cy = A1.y + dy * um + sm.y;
+                var hx = Math.abs(dx) > 0.5 ? p.lh / 2 : p.lb / 2, hy = Math.abs(dx) > 0.5 ? p.lb / 2 : p.lh / 2;
                 boxAt(cx - hx, cy - hy, cx + hx, cy + hy, 0.05, topM, mSlat);
               });
             });
