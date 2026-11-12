@@ -1004,19 +1004,27 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     }
 
     // zasięg pokrycia: na szczytach boazeria (a z nią pokrycie) wychodzi poza skrajne krokwie o zadane wysunięcie
-    var cover = { x0: x0, x1: x1, y0: y0, y1: y1 };
-    if (p.roof !== "hip" && p.vov !== null && planes[0].rafts.length) {
+    // deska czołowa: od zewnętrznej krawędzi jednej skrajnej krokwi do drugiej
+    var cover = { x0: x0, x1: x1, y0: y0, y1: y1 }, raftEnds = { x0: x0, x1: x1, y0: y0, y1: y1 };
+    if (p.roof !== "hip" && planes[0].rafts.length) {
       var us0 = planes[0].rafts.map(function (a) { return a.u; }).sort(function (a, b) { return a - b; });
-      var lo = us0[0] - p.kb / 2 - p.vov, hi = us0[us0.length - 1] + p.kb / 2 + p.vov;
-      if (planes[0].edge[0][1] === planes[0].edge[1][1]) { cover.x0 = lo; cover.x1 = hi; } else { cover.y0 = lo; cover.y1 = hi; }
+      var lo = us0[0] - p.kb / 2, hi = us0[us0.length - 1] + p.kb / 2, vo = p.vov !== null ? p.vov : 0;
+      if (planes[0].edge[0][1] === planes[0].edge[1][1]) {
+        raftEnds.x0 = lo; raftEnds.x1 = hi;
+        if (p.vov !== null) { cover.x0 = lo - vo; cover.x1 = hi + vo; }
+      } else {
+        raftEnds.y0 = lo; raftEnds.y1 = hi;
+        if (p.vov !== null) { cover.y0 = lo - vo; cover.y1 = hi + vo; }
+      }
     }
-    function stretch(q) { return [q[0] === x0 ? cover.x0 : q[0] === x1 ? cover.x1 : q[0], q[1] === y0 ? cover.y0 : q[1] === y1 ? cover.y1 : q[1]]; }
+    function mapTo(ext) { return function (q) { return [q[0] === x0 ? ext.x0 : q[0] === x1 ? ext.x1 : q[0], q[1] === y0 ? ext.y0 : q[1] === y1 ? ext.y1 : q[1]]; }; }
+    var stretch = mapTo(cover), toRafts = mapTo(raftEnds);
     R.cover = cover;
     R.coverPlanes = R.planes.map(function (poly) { return poly.map(stretch); });
     R.RW = cover.x1 - cover.x0; R.RD = cover.y1 - cover.y0;
     R.area = R.RW * R.RD / c;
 
-    // deski czołowe na okapach (na całą szerokość pokrycia) i łaty na szczytach
+    // deski czołowe na końcach krokwi i łaty na szczytach
     function board(name, a, b, kind) {
       R.boards.push({ a: a, b: b, kind: kind });
       add(name, "d", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
@@ -1026,7 +1034,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       R.boards.push({ a: a, b: b, kind: "lath" });
       add("Łata na szczycie", "l", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
     }
-    planes.forEach(function (pl) { board("Deska czołowa (okapowa)", stretch(pl.edge[0]), stretch(pl.edge[1]), "fascia"); });
+    planes.forEach(function (pl) { board("Deska czołowa (okapowa)", toRafts(pl.edge[0]), toRafts(pl.edge[1]), "fascia"); });
     var edges = { front: PL.front.edge, back: PL.back.edge, left: PL.left.edge, right: PL.right.edge };
     Object.keys(edges).forEach(function (k) {
       if (keys.indexOf(k) >= 0 || p.roof === "hip") return;
@@ -1036,7 +1044,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         var mid = p.rDir === "par" ? [e[0][0], ridgeA[1]] : [ridgeA[0], e[0][1]];
         lath(e[0], mid); lath(e[1], mid);
       } else if ((k === "front" && keys[0] === "back") || (k === "back" && keys[0] === "front") || (k === "left" && keys[0] === "right") || (k === "right" && keys[0] === "left")) {
-        board("Deska czołowa (górna krawędź)", stretch(e[0]), stretch(e[1]), "fascia");
+        board("Deska czołowa (górna krawędź)", toRafts(e[0]), toRafts(e[1]), "fascia");
       } else lath(e[0], e[1]);
     });
 
