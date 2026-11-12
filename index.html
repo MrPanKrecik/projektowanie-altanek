@@ -600,7 +600,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           </table>
         </div>
         <dl class="mat" id="roofSum"></dl>
-        <p class="note">Długości krokwi liczę po skosie, od kalenicy do krawędzi okapu, bez zapasu na zacięcia. Zamówienie dla tartaku to dokładne długości z zapasem na docięcie, zaokrąglone w górę do 10 cm. Ostrzeżenia o rozpiętościach są orientacyjne i nie zastępują obliczeń konstruktora. Krokwie spotykają się parami na kalenicy, bez belki na szczycie; płatew ze słupkami można włączyć przy kalenicy. Łata liczona jest tylko na krawędziach szczytów. Nie liczę mieczy, łat pod pokrycie i deskowania.</p>
+        <p class="note">Długości krokwi liczę po skosie, od kalenicy do krawędzi okapu, bez zapasu na zacięcia. Zamówienie dla tartaku to dokładne długości z zapasem na docięcie, zaokrąglone w górę do 10 cm. Ostrzeżenia o rozpiętościach są orientacyjne i nie zastępują obliczeń konstruktora. Krokwie spotykają się parami na kalenicy, bez belki na szczycie; płatew ze słupkami można włączyć przy kalenicy. Łata leży na boazerii przy samej krawędzi szczytu, a na nią idzie boczne okucie. Nie liczę mieczy, łat pod pokrycie i deskowania.</p>
       </section>
 
       <section class="card" id="boazCard" hidden>
@@ -1030,8 +1030,12 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       add(name, "d", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
     }
     // łata na szczycie: po krawędzi, na końcach belek, od okapu do szczytu
+    // łata na krawędzi szczytu: na boazerii, przy samym końcu dachu; na nią idzie boczne okucie
+    R.vergeLen = 0;
     function lath(a, b) {
+      a = stretch(a); b = stretch(b);
       R.boards.push({ a: a, b: b, kind: "lath" });
+      R.vergeLen += Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1]));
       add("Łata na szczycie", "l", Math.hypot(Math.hypot(b[0] - a[0], b[1] - a[1]), R.z(b[0], b[1]) - R.z(a[0], a[1])), 1);
     }
     planes.forEach(function (pl) { board("Deska czołowa (okapowa)", toRafts(pl.edge[0]), toRafts(pl.edge[1]), "fascia"); });
@@ -1740,6 +1744,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     out.push(row("Rzut pokrycia<small>z okapami, daszkiem i wysunięciem boazerii</small>", fcm(R.RW) + " × " + fcm(R.RD) + " cm"));
     out.push(row("Powierzchnia połaci<small>do zamówienia pokrycia</small>", f(R.area, 2) + " m²"));
     out.push(row("Daszek przed frontem<small>" + (r.Ep > 0 ? "na słupkach " + ids(r.extPts) : "bez słupków") + "</small>", fcm(R.F) + " cm"));
+    if (R.vergeLen > 0) out.push(row("Okucie boczne<small>obróbka szczytów na łacie, " + plural(R.boards.filter(function (b) { return b.kind === "lath"; }).length, "odcinek", "odcinki", "odcinków") + "</small>", f(R.vergeLen, 2) + " mb"));
     out.push(row("Rozstaw krokwi<small>w osiach, maks. " + fcm(p.rs) + " cm</small>", fcm(R.spacing) + " cm"));
     if (R.type === "mono") out.push(row("Różnica wysokości<small>między najniższym a najwyższym oczepem</small>", fcm(R.rise) + " cm"));
     else if (R.type === "gable" && p.ridge) out.push(row("Kalenica nad oczepem<small>tyle dłuższe są słupki pod kalenicę</small>", fcm(R.rise) + " cm"));
@@ -1982,6 +1987,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       L.push("");
       L.push("WIĘŹBA: " + roofDesc(r) + ", połać " + f(r.roof.area, 2) + " m²");
       r.roof.els.forEach(function (e) { L.push("  " + e.name + " " + secTxt(r, e.sec) + " cm: " + e.n + " × " + fcm(e.len) + " cm"); });
+      if (r.roof.vergeLen > 0) L.push("  Okucie boczne (obróbka szczytów): " + f(r.roof.vergeLen, 2) + " mb");
       var Bz = boazCalc(r);
       if (Bz && Bz.pack) {
         L.push("  Boazeria " + fcm(Bz.w) + " cm (paczka " + Bz.pp + " szt.): " + Bz.pack.packs.map(function (x) { return f(x.len, 1) + " m – " + x.packs + " pacz. (" + x.pcs + " szt.)"; }).join(", ") + "; razem " + f(Bz.pack.cost, 1) + " mb, " + f(Bz.m2, 2) + " m² krycia");
@@ -2106,7 +2112,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var cx = p.A / 2, cy = p.B / 2;
     function V(x, y, z) { return new THREE.Vector3(x - cx, z, cy - y); }
     function mat(color, extra) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.85, metalness: 0 }, extra || {})); }
-    var mPost = mat(0xb98a55), mBeam = mat(0xc49a63), mRaft = mat(0xd4ad78), mBoard = mat(0xa8774a);
+    var mPost = mat(0xb98a55), mBeam = mat(0xc49a63), mRaft = mat(0xd4ad78), mBoard = mat(0xa8774a), mFlash = mat(0x39424a, { roughness: 0.5, metalness: 0.3 });
     function mesh(geo, m, shadow) { var o = new THREE.Mesh(geo, m); o.castShadow = shadow !== false; o.receiveShadow = true; G.add(o); return o; }
     // belka między dwoma punktami; spód belki na linii a–b
     function bar(a, b, w, h, m) {
@@ -2229,9 +2235,20 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       // deska czołowa i wiatrownice: na końcach krokwi, górą równo z krokwią
       R.boards.forEach(function (b) {
         if (b.kind === "lath") {
-          // łata leży na końcach belek, przesunięta do środka o pół szerokości
-          var ix = b.a[0] === R.x0 ? p.lb / 2 : b.a[0] === R.x1 ? -p.lb / 2 : 0, iy = b.a[1] === R.y0 ? p.lb / 2 : b.a[1] === R.y1 ? -p.lb / 2 : 0;
-          bar(V(b.a[0] + ix, b.a[1] + iy, Z(b.a[0], b.a[1])), V(b.b[0] + ix, b.b[1] + iy, Z(b.b[0], b.b[1])), p.lb, p.lh, mRaft);
+          if (!el("v3roof").checked) return;   // bez pokrycia nie ma pod nią boazerii, więc jej nie rysuję
+          // łata leży na boazerii przy samej krawędzi dachu, okucie boczne obejmuje ją od zewnątrz
+          var cv = R.cover, alongY = Math.abs(b.a[0] - b.b[0]) < 1e-9;
+          var sg = alongY ? (Math.abs(b.a[0] - cv.x0) < 1e-9 ? 1 : -1) : (Math.abs(b.a[1] - cv.y0) < 1e-9 ? 1 : -1);
+          function off(q, d) { return alongY ? [q[0] + sg * d, q[1]] : [q[0], q[1] + sg * d]; }
+          var onB = kh / R.c + 0.025;        // wierzch boazerii z pokryciem
+          var a1 = off(b.a, p.lb / 2), b1 = off(b.b, p.lb / 2);
+          bar(V(a1[0], a1[1], Z(b.a[0], b.a[1]) + onB), V(b1[0], b1[1], Z(b.b[0], b.b[1]) + onB), p.lb, p.lh, mRaft);
+          if (el("v3roof").checked) {
+            var a2 = off(b.a, -0.004), b2 = off(b.b, -0.004);
+            bar(V(a2[0], a2[1], Z(b.a[0], b.a[1]) + onB - 0.06), V(b2[0], b2[1], Z(b.b[0], b.b[1]) + onB - 0.06), 0.008, p.lh + 0.07, mFlash);
+            var a3 = off(b.a, p.lb / 2 - 0.004), b3 = off(b.b, p.lb / 2 - 0.004);
+            bar(V(a3[0], a3[1], Z(b.a[0], b.a[1]) + onB + p.lh), V(b3[0], b3[1], Z(b.b[0], b.b[1]) + onB + p.lh), p.lb + 0.016, 0.006, mFlash);
+          }
           return;
         }
         var top = kh / R.c;
