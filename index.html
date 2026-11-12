@@ -92,6 +92,7 @@ label.check input { margin-top: 3px; accent-color: var(--accent); }
   content: attr(data-u); position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   font-family: var(--font-mono); font-size: 12px; color: var(--muted); pointer-events: none;
 }
+input[type="color"] { width: 100%; height: 36px; padding: 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); cursor: pointer; }
 input[type="text"] { width: 100%; font: inherit; font-family: var(--font-mono); font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 7px 10px; }
 input[type="number"], select {
   width: 100%; font: inherit; font-family: var(--font-mono); font-size: 15px; color: var(--ink);
@@ -367,6 +368,23 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
             <option value="none">Nie licz pokrycia</option>
           </select>
         </label>
+        <div class="row">
+          <label>Kolor pokrycia
+            <select id="cvColor">
+              <option value="#383e42">Grafit (RAL 7016)</option>
+              <option value="#474a51">Szary (RAL 7024)</option>
+              <option value="#232425">Czarny (RAL 9005)</option>
+              <option value="#45322e">Brąz (RAL 8017)</option>
+              <option value="#8f4e35">Ceglasty (RAL 8004)</option>
+              <option value="#6d342d">Wiśniowy (RAL 3009)</option>
+              <option value="#37422f">Zielony (RAL 6020)</option>
+              <option value="custom">Własny kolor…</option>
+            </select>
+          </label>
+          <label id="cvCustomWrap">Własny kolor
+            <input type="color" id="cvCustom" value="#5a6470">
+          </label>
+        </div>
         <div class="row" id="cvGont">
           <label>Paczka gontu
             <span class="unit" data-u="m²"><input type="number" id="cvPack" step="0.1" min="0.5" value="3"></span>
@@ -699,7 +717,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 (function () {
   "use strict";
   var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
-    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "cvType", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
+    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "cvType", "cvColor", "cvCustom", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
   var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft"];
   var KEY = "kalkulator-altanki-v9";
@@ -1168,6 +1186,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 
 
   // ---------- pokrycie dachu: gont albo blacha ----------
+  function coverColor() { var v = el("cvColor").value; return v === "custom" ? el("cvCustom").value : v; }
+  function coverColorName() {
+    var sel = el("cvColor");
+    return sel.value === "custom" ? "własny " + el("cvCustom").value : sel.options[sel.selectedIndex].text;
+  }
   // największa odległość od okapu do krawędzi połaci na linii prostopadłej do okapu (u = położenie wzdłuż okapu)
   function runAt(pd, u) {
     var poly = pd.cpoly, best = 0;
@@ -1226,14 +1249,14 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     if (C.err) { el("coverMat").innerHTML = row("Pokrycie", C.err); el("coverTblWrap").hidden = true; el("coverNote").textContent = ""; return C; }
     var m = [row("Powierzchnia dachu<small>z okapami i wysunięciem na szczytach</small>", f(C.area, 2) + " m²")];
     if (C.type === "gont") {
-      el("coverTag").textContent = "gont bitumiczny";
+      el("coverTag").textContent = "gont bitumiczny, " + coverColorName();
       m.push(row("Gont bitumiczny<small>paczka " + f(C.packM2, 1) + " m², zapas " + f(C.waste * 100, 0) + "%</small>", plural(C.packs, "paczka", "paczki", "paczek")));
       if (C.ridge + C.hips > 0) m.push(row("Gonty na kalenicę i narożniki<small>gąsiory, długość do pokrycia</small>", f(C.ridge + C.hips, 2) + " mb"));
       m.push(row("Papa podkładowa<small>z zakładami 10%</small>", plural(C.rolls, "rolka", "rolki", "rolek")));
       el("coverTblWrap").hidden = true;
       el("coverNote").textContent = "Gont kładzie się na boazerii przykrytej papą podkładową. Na gąsiory wiele firm sprzedaje osobne gonty kalenicowe, a część ludzi tnie je ze zwykłych pasów. Wtedy dolicz około jednej paczki na każde 10–12 mb kalenicy.";
     } else {
-      el("coverTag").textContent = (C.type === "dachowka" ? "blachodachówka" : "blacha trapezowa / na rąbek") + ", krycie " + fcm(C.w) + " cm";
+      el("coverTag").textContent = (C.type === "dachowka" ? "blachodachówka" : "blacha trapezowa / na rąbek") + ", krycie " + fcm(C.w) + " cm, " + coverColorName();
       m.push(row("Arkusze blachy<small>na wymiar, od okapu do kalenicy</small>", plural(C.nSheets, "arkusz", "arkusze", "arkuszy") + " · " + f(C.sheetM2, 2) + " m²"));
       if (C.ridge + C.hips > 0) m.push(row("Gąsior / obróbka kalenicy<small>kalenica i narożniki</small>", f(C.ridge + C.hips, 2) + " mb"));
       m.push(row("Wkręty farmerskie<small>ok. " + f(num("cvScr"), 0) + " na m²</small>", "ok. " + C.screws + " szt."));
@@ -1736,6 +1759,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("boazFs").hidden = !rOn;
     el("coverFs").hidden = !rOn;
     var cvT = el("cvType").value;
+    el("cvCustomWrap").hidden = el("cvColor").value !== "custom";
     el("cvGont").hidden = cvT !== "gont"; el("cvBlacha").hidden = cvT !== "blacha" && cvT !== "dachowka"; el("cvRollWrap").hidden = cvT === "none";
     ["boazBox1", "boazBox4", "boazHint2", "boazBox3"].forEach(function (id) { el(id).hidden = !el("boaz").checked; });
     ["boazBox2", "boazHint"].forEach(function (id) { el(id).hidden = !el("boaz").checked || el("bzMode").value !== "list"; });
@@ -2146,6 +2170,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       var Bz = boazCalc(r);
       var Cv = coverCalc(r);
       if (Cv && !Cv.err) {
+        L.push("  Kolor pokrycia i obróbek: " + coverColorName());
         if (Cv.type === "gont") L.push("  Gont bitumiczny: " + plural(Cv.packs, "paczka", "paczki", "paczek") + " (" + f(Cv.area, 2) + " m² + zapas), gąsiory " + f(Cv.ridge + Cv.hips, 2) + " mb, papa " + plural(Cv.rolls, "rolka", "rolki", "rolek"));
         else L.push("  " + (Cv.type === "dachowka" ? "Blachodachówka" : "Blacha") + " (krycie " + fcm(Cv.w) + " cm): " + Cv.sheets.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", ") + "; gąsior " + f(Cv.ridge + Cv.hips, 2) + " mb, wkręty ok. " + Cv.screws + ", membrana " + plural(Cv.rolls, "rolka", "rolki", "rolek"));
         L.push("  Okapnik: " + f(Cv.eave, 2) + " mb");
@@ -2264,7 +2289,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var cv = document.createElement("canvas"), g, W, H, w, h;
     if (type === "gont") {
       // gont: 6 rzędów po 14,3 cm, płytki 12–34 cm w odcieniach szarości, cień pod każdym rzędem
-      w = 1.0; h = 0.858; W = 512; H = 440; cv.width = W; cv.height = H; g = cv.getContext("2d");
+      w = 1.0; h = 0.858; W = 512; H = 440; cv.width = W; cv.height = H; g = cv.getContext("2d", { willReadFrequently: true });
       var r = rng(7), rowH = H / 6;
       g.fillStyle = "#26282b"; g.fillRect(0, 0, W, H);
       for (var row = 0; row < 6; row++) {
@@ -2288,7 +2313,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     }
     if (type === "dachowka") {
       // blachodachówka: 2 fale po 18,3 cm w poprzek, moduł 35 cm wzdłuż połaci ze schodkiem na dole
-      w = 0.366; h = 0.35; W = 256; H = 256; cv.width = W; cv.height = H; g = cv.getContext("2d");
+      w = 0.366; h = 0.35; W = 256; H = 256; cv.width = W; cv.height = H; g = cv.getContext("2d", { willReadFrequently: true });
       var im = g.createImageData(W, H), dd = im.data;
       for (var yy = 0; yy < H; yy++) for (var xx = 0; xx < W; xx++) {
         var wave = Math.cos(xx / W * 4 * Math.PI);            // fale: grzbiet jasny, dolina ciemna
@@ -2302,7 +2327,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       return wrapTex(cv, w, h, 0.45, 0.35);
     }
     // blacha trapezowa / na rąbek: przetłoczenie co 25 cm, wzdłuż spadku
-    w = 0.25; h = 1; W = 256; H = 8; cv.width = W; cv.height = H; g = cv.getContext("2d");
+    w = 0.25; h = 1; W = 256; H = 8; cv.width = W; cv.height = H; g = cv.getContext("2d", { willReadFrequently: true });
     for (var x2 = 0; x2 < W; x2++) {
       var u = x2 / W, l2 = 66;
       if (u < 0.05) l2 = 120;              // jasna ściana przetłoczenia
@@ -2328,6 +2353,12 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     return wave + 0.028 * (1 - t);
   }
   function wrapTex(cv, w, h, rough, metal) {
+    // tekstura w szarościach o średniej jasności ok. 200: kolor pokrycia nadaje materiał (mnożenie)
+    var g = cv.getContext("2d"), img = g.getImageData(0, 0, cv.width, cv.height), d = img.data, sum = 0, k;
+    for (k = 0; k < d.length; k += 4) sum += 0.3 * d[k] + 0.59 * d[k + 1] + 0.11 * d[k + 2];
+    var fct = 200 / Math.max(1, sum / (d.length / 4));
+    for (k = 0; k < d.length; k += 4) { var L = Math.min(255, (0.3 * d[k] + 0.59 * d[k + 1] + 0.11 * d[k + 2]) * fct); d[k] = d[k + 1] = d[k + 2] = L; }
+    g.putImageData(img, 0, 0);
     var tx = new THREE.CanvasTexture(cv);
     tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
     tx.anisotropy = 8;
@@ -2350,7 +2381,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     var cx = p.A / 2, cy = p.B / 2;
     function V(x, y, z) { return new THREE.Vector3(x - cx, z, cy - y); }
     function mat(color, extra) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.85, metalness: 0 }, extra || {})); }
-    var mPost = mat(0xb98a55), mBeam = mat(0xc49a63), mRaft = mat(0xd4ad78), mBoard = mat(0xa8774a), mFlash = mat(0x39424a, { roughness: 0.5, metalness: 0.3 });
+    var mPost = mat(0xb98a55), mBeam = mat(0xc49a63), mRaft = mat(0xd4ad78), mBoard = mat(0xa8774a), mFlash = new THREE.MeshStandardMaterial({ color: new THREE.Color(coverColor()), roughness: 0.5, metalness: 0.3 });
     function mesh(geo, m, shadow) { var o = new THREE.Mesh(geo, m); o.castShadow = shadow !== false; o.receiveShadow = true; G.add(o); return o; }
     // belka między dwoma punktami; spód belki na linii a–b
     function bar(a, b, w, h, m) {
@@ -2495,7 +2526,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       });
       if (el("v3roof").checked) {
         var lift = kh / R.c + 0.025, cvT = el("cvType").value, T = roofTexture(cvT), relief = cvT === "blacha" || cvT === "dachowka";
-        var mCover = new THREE.MeshStandardMaterial({ map: T.tex, side: THREE.DoubleSide, roughness: T.rough, metalness: T.metal, emissive: 0x161718 });
+        var mCover = new THREE.MeshStandardMaterial({ map: T.tex, color: new THREE.Color(coverColor()), side: THREE.DoubleSide, roughness: T.rough, metalness: T.metal, emissive: 0x0d0d0e });
         R.planeData.forEach(function (pd) {
           // siatka na połaci: kolumny wzdłuż okapu, wiersze w górę połaci (do kalenicy albo krokwi narożnej)
           var u0 = Math.min(pd.ceave[0], pd.ceave[1]), u1 = Math.max(pd.ceave[0], pd.ceave[1]);
@@ -2542,7 +2573,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           var cg = new THREE.BufferGeometry();
           cg.setAttribute("position", new THREE.Float32BufferAttribute(capPos, 3));
           cg.computeVertexNormals();
-          mesh(cg, new THREE.MeshStandardMaterial({ color: 0x3a434b, side: THREE.DoubleSide, roughness: 0.45, metalness: 0.35, emissive: 0x111315 }));
+          mesh(cg, new THREE.MeshStandardMaterial({ color: new THREE.Color(coverColor()), side: THREE.DoubleSide, roughness: 0.45, metalness: 0.35, emissive: 0x0d0d0e }));
         }
         // boazeria pod pokryciem: od spodu widać deski ułożone wzdłuż okapu
         var bw = parseFloat(el("bzW").value) / 100 || 0.1, pos2 = [], uv2 = [];
