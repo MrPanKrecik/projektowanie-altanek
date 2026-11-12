@@ -435,6 +435,42 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       </fieldset>
 
       <fieldset>
+        <legend><i style="background:var(--timber)"></i>Ściany z boazerii</legend>
+        <div class="checks4">
+          <label class="check"><input type="checkbox" id="wcF"> Przód</label>
+          <label class="check"><input type="checkbox" id="wcB"> Tył</label>
+          <label class="check"><input type="checkbox" id="wcL"> Lewa</label>
+          <label class="check"><input type="checkbox" id="wcR"> Prawa</label>
+        </div>
+        <div class="row" id="wcBox1">
+          <label>Mocowanie
+            <select id="wcMount">
+              <option value="between">Między słupkami</option>
+              <option value="on">Na słupkach (od zewnątrz)</option>
+            </select>
+          </label>
+          <label>Deski
+            <select id="wcOri">
+              <option value="h">Poziomo</option>
+              <option value="v">Pionowo</option>
+            </select>
+          </label>
+        </div>
+        <div class="row" id="wcBox2">
+          <label>Wysokość
+            <select id="wcHm">
+              <option value="full">Do belki (pełna)</option>
+              <option value="part">Do zadanej wysokości</option>
+            </select>
+          </label>
+          <label id="wcHWrap">Wysokość obicia
+            <span class="unit" data-u="cm"><input type="number" id="wcH" step="5" min="20" value="100"></span>
+          </label>
+        </div>
+        <p class="hint" id="wcHint">Szerokość desek i długości bierzemy z sekcji „Boazeria na dach”. Otwór drzwiowy zostaje wolny.</p>
+      </fieldset>
+
+      <fieldset>
         <legend><i style="background:var(--accent)"></i>Drzwi</legend>
         <label class="check"><input type="checkbox" id="door" checked> Otwór na drzwi ze słupkami po obu stronach</label>
         <div class="row">
@@ -480,10 +516,16 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
           <label>Głębokość
             <span class="unit" data-u="cm"><input type="number" id="wD" step="5" min="30" value="80"></span>
           </label>
-          <label>Wysokość kratownicy
+          <label>Wysokość zabudowy
             <span class="unit" data-u="cm"><input type="number" id="wH" step="5" min="30" value="180"></span>
           </label>
         </div>
+        <label id="wFillWrap">Zabudowa ścian drewutni
+          <select id="wFill">
+            <option value="slats">Poziome łaty 5 × 7 cm, przerwa 7 cm</option>
+            <option value="lattice">Kratownica</option>
+          </select>
+        </label>
         <label class="check" id="woodBox3"><input type="checkbox" id="wFull" checked> Na całej długości ściany</label>
         <div class="row" id="woodBox4">
           <label>Od narożnika
@@ -679,6 +721,12 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         <p class="note" id="coverNote"></p>
       </section>
 
+      <section class="card" id="wallCard" hidden>
+        <h2>Boazeria na ściany <span class="tag" id="wallTag"></span></h2>
+        <dl class="mat" id="wallMat"></dl>
+        <p class="note">Przy mocowaniu na słupkach łączenia desek poziomych wypadają na słupkach. Deski pionowe przybija się do rygli 5 × 7 cm między słupkami: 2 rygle do wysokości 120 cm, wyżej 3. Zakup w pełnych paczkach, jak przy boazerii na dach.</p>
+      </section>
+
       <section class="card" id="woodCard" hidden>
         <h2>Drewutnia <span class="tag">kratownica i pojemność</span></h2>
         <dl class="mat" id="woodMat"></dl>
@@ -716,10 +764,10 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 <script>
 (function () {
   "use strict";
-  var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "oLen", "oT", "oLW", "oLH",
-    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "cvType", "cvColor", "cvCustom", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
+  var IDS = ["pName", "A", "B", "span", "post", "dWall", "dW", "dOff", "wWall", "wMode", "wD", "wH", "wOff", "wLen", "wFill", "oLen", "oT", "oLW", "oLH",
+    "roof", "ang", "rDir", "sDir", "ov", "ext", "extSup", "rs", "ph", "kb", "kh", "bb", "bh", "db", "dh", "cut", "ri", "lb", "lh", "bzW", "bzO", "bzL", "bzMode", "wcMount", "wcOri", "wcHm", "wcH", "cvType", "cvColor", "cvCustom", "cvPack", "cvWaste", "cvW", "cvScr", "cvRoll",
     "margin", "front", "fmt", "thick", "waste", "bed", "base", "pallet", "foot", "depth"];
-  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft"];
+  var CHECKS = ["ridge", "door", "dMid", "wood", "wFull", "oF", "oB", "oL", "oR", "oLaw", "jetki", "ties", "boaz", "bzStag", "wRaft", "wcF", "wcB", "wcL", "wcR"];
   var KEY = "kalkulator-altanki-v9";
   var WALLS = ["przód", "prawa", "tył", "lewa"];
   var defaults = {};
@@ -1272,6 +1320,99 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     return C;
   }
 
+
+  // ---------- boazeria na ścianach ----------
+  function boardCfg() {
+    var w = parseFloat(el("bzW").value) / 100, pp = w > 0.09 ? 10 : 12, stock;
+    if (el("bzMode").value === "any") { stock = []; for (var sl = 7; sl <= 50; sl++) stock.push({ len: sl / 10, max: Infinity }); }
+    else stock = parseStock(el("bzL").value);
+    return { w: w, pp: pp, stock: stock };
+  }
+  var WALL_IDS = { "przód": "wcF", "tył": "wcB", "lewa": "wcL", "prawa": "wcR" };
+  function wallCalc(r) {
+    var p = r.p, names = WALLS.filter(function (n) { return el(WALL_IDS[n]).checked; });
+    if (!names.length) return null;
+    var cfg = boardCfg();
+    if (!cfg.stock.length) return { err: "Wpisz dostępne długości boazerii w sekcji „Boazeria na dach”." };
+    var mount = el("wcMount").value, ori = el("wcOri").value, maxL = cfg.stock[cfg.stock.length - 1].len;
+    var full = mount === "on" ? p.ph + p.bh : p.ph;
+    var z0 = 0.05, H = Math.max(0.2, (el("wcHm").value === "part" ? Math.min(num("wcH") / 100, full) : full) - z0);
+    var pieces = [], rygle = {}, area = 0, perWall = [], warnT = [], panels = [];
+    function addRygle(clear) { var nr = H > 1.2 ? 3 : 2, L = Math.ceil(clear * 100 - 1e-6) / 100; rygle[L] = (rygle[L] || 0) + nr; }
+    names.forEach(function (name) {
+      var W = r.walls[name], pos = W.pos.map(function (q) { return q.u; }), s = p.s, a0 = 0;
+      if (mount === "between") {
+        for (var i = 0; i < pos.length - 1; i++) {
+          if (W.door && i === W.door.gi) continue;
+          var a = pos[i] + s / 2, b = pos[i + 1] - s / 2, clear = b - a;
+          if (clear < 0.05) continue;
+          panels.push({ wall: name, a: a, b: b, t: s / 2 });
+          a0 += clear * H;
+          if (ori === "h") {
+            var parts = Math.ceil(clear / maxL - 1e-9), rows = Math.ceil(H / cfg.w - 1e-6);
+            for (var k = 0; k < rows * parts; k++) pieces.push(clear / parts);
+            if (parts > 1) warnT.push("Na ścianie „" + name + "” przęsło ma " + fcm(clear) + " cm, dłużej niż najdłuższa deska. Deski trzeba łączyć bez podparcia.");
+          } else {
+            var nv = Math.ceil(clear / cfg.w - 1e-6);
+            for (k = 0; k < nv; k++) pieces.push(H);
+            addRygle(clear);
+          }
+        }
+      } else {
+        var segs = W.door ? [[0, W.door.d0], [W.door.d0 + W.door.w, W.L]] : [[0, W.L]];
+        segs.forEach(function (sg) {
+          var len = sg[1] - sg[0]; if (len < 0.05) return;
+          panels.push({ wall: name, a: sg[0], b: sg[1], t: -0.012 });
+          a0 += len * H;
+          if (ori === "h") {
+            var row2 = { L: len, sup: pos.filter(function (u) { return u > sg[0] - 1e-6 && u < sg[1] + 1e-6; }).map(function (u) { return u - sg[0]; }) };
+            var opts = rowSplits(row2, maxL, 3000);
+            if (!opts.length) { warnT.push("Ściany „" + name + "” nie da się obić deskami z łączeniami na słupkach. Dodaj dłuższe deski albo zmniejsz rozstaw słupków."); return; }
+            opts.forEach(function (o) { o.cost = o.pcs.reduce(function (acc, pc) { var st = cfg.stock.filter(function (x) { return x.len >= pc - 1e-9; })[0]; return acc + (st ? st.len - pc : 99) + 0.03; }, 0); });
+            opts.sort(function (x, y) { return x.cost - y.cost; });
+            var rowsN = Math.ceil(H / cfg.w - 1e-6), A = opts[0], B = opts.length > 1 ? opts.filter(function (o) { return !o.joints.some(function (j) { return A.joints.some(function (jj) { return Math.abs(j - jj) < 1e-6; }); }); })[0] || A : A;
+            for (var k2 = 0; k2 < rowsN; k2++) pieces = pieces.concat((k2 % 2 ? B : A).pcs);
+          } else {
+            var nv2 = Math.ceil(len / cfg.w - 1e-6);
+            for (var k3 = 0; k3 < nv2; k3++) pieces.push(H);
+            for (var i2 = 0; i2 < pos.length - 1; i2++) {
+              if (W.door && i2 === W.door.gi) continue;
+              if (pos[i2] >= sg[0] - 1e-6 && pos[i2 + 1] <= sg[1] + 1e-6) addRygle(pos[i2 + 1] - pos[i2] - s);
+            }
+          }
+        });
+      }
+      perWall.push({ name: name, area: a0 }); area += a0;
+    });
+    var pk = pieces.length ? bestPack(pieces, cfg.stock, cfg.pp) : null;
+    if (pieces.length && !pk) warnT.push("Podanych długości desek nie starcza na ściany. Dodaj dłuższe deski albo więcej sztuk.");
+    var rl = Object.keys(rygle).map(Number).sort(function (a, b) { return b - a; }).map(function (L) { return { len: L, n: rygle[L] }; });
+    var pcsCount = {};
+    pieces.forEach(function (pc) { var L = Math.round(pc * 1000) / 1000; pcsCount[L] = (pcsCount[L] || 0) + 1; });
+    return { cfg: cfg, mount: mount, ori: ori, H: H, z0: z0, area: area, perWall: perWall, pack: pk, rygle: rl, warn: warnT, panels: panels,
+      need: pieces.reduce(function (a, b) { return a + b; }, 0),
+      cuts: Object.keys(pcsCount).map(Number).sort(function (a, b) { return b - a; }).map(function (L) { return { len: L, n: pcsCount[L] }; }) };
+  }
+  function renderWalls(r) {
+    var Wc = wallCalc(r);
+    el("wallCard").hidden = !Wc;
+    if (!Wc) return null;
+    if (Wc.err) { el("wallMat").innerHTML = row("Boazeria", Wc.err); return Wc; }
+    el("wallTag").textContent = (Wc.mount === "on" ? "na słupkach" : "między słupkami") + ", deski " + (Wc.ori === "h" ? "poziomo" : "pionowo") + ", wysokość " + fcm(Wc.H) + " cm";
+    var m = Wc.perWall.map(function (w) { return row("Ściana: " + w.name, f(w.area, 2) + " m²"); });
+    m.push(row("Razem do obicia", f(Wc.area, 2) + " m²"));
+    m.push(row("Kawałki desek<small>długości po docięciu</small>", Wc.cuts.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
+    if (Wc.pack) {
+      var left = Wc.pack.packs.reduce(function (a, x) { return a + x.pcs - x.need; }, 0);
+      Wc.pack.packs.forEach(function (x) { m.push(row("Boazeria " + f(x.len, 1) + " m<small>potrzeba " + x.need + " szt." + (x.pcs > x.need ? ", zostanie " + (x.pcs - x.need) : "") + "</small>", plural(x.packs, "paczka", "paczki", "paczek") + " · " + x.pcs + " szt.")); });
+      m.push(row("Razem do kupienia<small>odpad z cięcia " + f((1 - Wc.need / Wc.pack.bought) * 100, 1) + "%" + (left ? ", w paczkach zostanie " + plural(left, "deska", "deski", "desek") : "") + "</small>", plural(Wc.pack.nPacks, "paczka", "paczki", "paczek") + " · " + f(Wc.pack.cost, 1) + " mb"));
+    }
+    if (Wc.rygle.length) m.push(row("Rygle 5 × 7 cm<small>do desek pionowych, między słupkami</small>", Wc.rygle.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
+    Wc.warn.forEach(function (t) { m.push(row("Uwaga", t)); });
+    el("wallMat").innerHTML = m.join("");
+    return Wc;
+  }
+
   // ---------- boazeria na dach ----------
   function parseStock(txt) {
     var out = [];
@@ -1699,6 +1840,18 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       wood.latLen = faces.reduce(function (s, x) { return s + x.l; }, 0);
       wood.latM2 = wood.latLen * p.wH;
       wood.mp = Math.max(0, wood.clearL * wood.clearD * p.wH);
+      // poziome łaty 5 × 7 cm na sztorc (7 cm w pionie), przerwa 7 cm, od 5 cm nad kostką
+      wood.fill = el("wFill").value;
+      if (wood.fill === "slats") {
+        var rows = Math.max(1, Math.floor((p.wH - 0.05 + 0.07) / 0.14 + 1e-9)), cnt = {};
+        faces.forEach(function (fc) {
+          var one = fc.n === "boki" ? fc.l / 2 : fc.l, k = fc.n === "boki" ? 2 : 1;
+          var parts = Math.ceil(one / 6 - 1e-9), L = Math.ceil(one / parts * 100 - 1e-6) / 100;
+          cnt[L] = (cnt[L] || 0) + rows * parts * k;
+        });
+        wood.slats = { rows: rows, list: Object.keys(cnt).map(Number).sort(function (a, b) { return b - a; }).map(function (L) { return { len: L, n: cnt[L] }; }) };
+        wood.slats.mb = wood.slats.list.reduce(function (a, x) { return a + x.len * x.n; }, 0);
+      }
     }
 
     // krokwie nad słupkami drewutni: linie słupków drewutni biegnące równolegle do krokwi
@@ -1750,6 +1903,9 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("dHint").textContent = "Szerokość przejścia to prześwit między słupkami przy drzwiach." +
       (el("dMid").checked ? "" : (dw === "przód" || dw === "tył") ? " Odległość mierzysz od lewej zewnętrznej krawędzi altany, patrząc od frontu." : " Odległość mierzysz od przedniej zewnętrznej krawędzi altany.");
     el("oLawBox").hidden = !el("oLaw").checked;
+    var wcOn = ["wcF", "wcB", "wcL", "wcR"].some(function (id) { return el(id).checked; });
+    ["wcBox1", "wcBox2", "wcHint"].forEach(function (id) { el(id).hidden = !wcOn; });
+    el("wcHWrap").hidden = el("wcHm").value !== "part";
     var rf = el("roof").value, rOn = rf !== "none";
     ["angWrap", "roofBox1", "extSupWrap", "extHint", "roofBox2", "roofBox3", "roofBox4", "stockWrap"].forEach(function (id) { el(id).hidden = !rOn; });
     el("rDirWrap").hidden = rf !== "gable";
@@ -1766,7 +1922,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("jetkiWrap").hidden = rf !== "gable" || el("ridge").checked;
     el("ridgeTxt").textContent = rf === "none" ? "Słupek na środku krótszych ścian (pod kalenicę)" : "Płatew i słupki pod kalenicą (zwykle niepotrzebne)";
     var wOn = el("wood").checked;
-    ["woodBox1", "woodBox2", "woodBox3", "woodHint", "wRaftWrap"].forEach(function (id) { el(id).hidden = !wOn; });
+    ["woodBox1", "woodBox2", "woodBox3", "woodHint", "wRaftWrap", "wFillWrap"].forEach(function (id) { el(id).hidden = !wOn; });
     el("woodBox4").hidden = !wOn || el("wFull").checked;
     var ww = el("wWall").value;
     el("woodHint").textContent = "Głębokość liczysz od zewnętrznej krawędzi ściany altany do zewnętrznej krawędzi słupków drewutni." +
@@ -1776,7 +1932,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     el("warn").innerHTML = r.warn.map(function (w) { return "<div>" + w + "</div>"; }).join("");
     if (r.bad) {
       ["stats", "plan", "mat", "posts", "tbl", "steps", "woodMat", "roofMat", "roofTbl", "roofSum"].forEach(function (id) { el(id).innerHTML = ""; });
-      el("woodCard").hidden = true; el("roofCard").hidden = true; el("boazCard").hidden = true; el("coverCard").hidden = true;
+      el("woodCard").hidden = true; el("roofCard").hidden = true; el("boazCard").hidden = true; el("coverCard").hidden = true; el("wallCard").hidden = true;
       return;
     }
     var p = r.p;
@@ -1838,6 +1994,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
 
     r.boaz = R ? renderBoaz(r) : (el("boazCard").hidden = true, null);
     r.cover = R ? renderCover(r) : (el("coverCard").hidden = true, null);
+    r.wallC = renderWalls(r);
 
     el("woodCard").hidden = !wood;
     if (wood) {
@@ -1847,8 +2004,13 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
         row("Wnętrze na drewno<small>między słupkami</small>", fcm(wood.clearL) + " × " + fcm(wood.clearD) + " cm"),
         row("Słupki drewutni", ids(r.woodPts))
       ];
-      wood.faces.forEach(function (fc) { wr.push(row("Kratownica: " + fc.n, fcm(fc.l) + " cm")); });
-      wr.push(row("Kratownica razem<small>wysokość " + fcm(p.wH) + " cm</small>", f(wood.latLen, 2) + " mb · " + f(wood.latM2, 2) + " m²"));
+      if (wood.slats) {
+        wr.push(row("Zabudowa<small>łaty 5 × 7 cm na sztorc, przerwa 7 cm, " + plural(wood.slats.rows, "rząd", "rzędy", "rzędów") + "</small>", wood.faces.map(function (fc) { return fc.n + " " + fcm(fc.l); }).join(", ") + " cm"));
+        wr.push(row("Łaty 5 × 7 cm do zamówienia<small>" + f(wood.slats.mb, 2) + " mb · " + f(wood.slats.mb * 0.0035, 3) + " m³</small>", wood.slats.list.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join("<br>")));
+      } else {
+        wood.faces.forEach(function (fc) { wr.push(row("Kratownica: " + fc.n, fcm(fc.l) + " cm")); });
+        wr.push(row("Kratownica razem<small>wysokość " + fcm(p.wH) + " cm</small>", f(wood.latLen, 2) + " mb · " + f(wood.latM2, 2) + " m²"));
+      }
       wr.push(row("Pojemność<small>drewno ułożone, metry przestrzenne</small>", "ok. " + f(wood.mp, 1) + " mp"));
       el("woodMat").innerHTML = wr.join("");
     }
@@ -2160,7 +2322,8 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
     }
     if (wood) {
       L.push("Drewutnia (" + (wood.mode === "out" ? "na zewnątrz" : "w środku") + ", ściana " + wood.wall + "): " + fcm(wood.len) + " × " + fcm(wood.D) + " cm, słupki " + ids(r.woodPts));
-      L.push("Kratownica: " + f(wood.latLen, 2) + " mb × " + fcm(p.wH) + " cm = " + f(wood.latM2, 2) + " m², pojemność ok. " + f(wood.mp, 1) + " mp drewna");
+      if (wood.slats) L.push("Łaty 5×7 cm na zabudowę drewutni: " + wood.slats.list.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", ") + ", pojemność ok. " + f(wood.mp, 1) + " mp drewna");
+      else L.push("Kratownica: " + f(wood.latLen, 2) + " mb × " + fcm(p.wH) + " cm = " + f(wood.latM2, 2) + " m², pojemność ok. " + f(wood.mp, 1) + " mp drewna");
     }
     if (r.roof) {
       L.push("");
@@ -2181,6 +2344,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       L.push("  Zamówienie w tartaku (z zapasem " + fcm(p.cut) + " cm):");
       r.roof.sum.forEach(function (sm) { L.push("  " + fcm(sm.b) + "×" + fcm(sm.h) + " " + sm.name.toLowerCase() + ": " + sm.order.map(function (o) { return o.n + " × " + fcm(o.len) + " cm"; }).join(", ") + " (" + f(sm.m3, 3) + " m³)"); });
       L.push("");
+    }
+    var Wc = wallCalc(r);
+    if (Wc && !Wc.err && Wc.pack) {
+      L.push("Boazeria na ściany (" + (Wc.mount === "on" ? "na słupkach" : "między słupkami") + ", " + (Wc.ori === "h" ? "poziomo" : "pionowo") + ", " + f(Wc.area, 2) + " m²): " + Wc.pack.packs.map(function (x) { return f(x.len, 1) + " m – " + x.packs + " pacz."; }).join(", "));
+      if (Wc.rygle.length) L.push("Rygle 5×7 cm: " + Wc.rygle.map(function (x) { return x.n + " × " + fcm(x.len) + " cm"; }).join(", "));
     }
     L.push("Kotwy: " + r.pts.length + " szt., beton na stopy: " + f(r.footV, 2) + " m³ (~" + r.footBags + " worków 25 kg)");
     L.push("");
@@ -2448,6 +2616,23 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       boxAt(Math.min(a.x, b.x) - (dx ? 0 : th / 2), Math.min(a.y, b.y) - (dy ? 0 : th / 2), Math.max(a.x, b.x) + (dx ? 0 : th / 2), Math.max(a.y, b.y) + (dy ? 0 : th / 2), 0.02, dh, mat(0x7a5434));
     }
 
+    // ściany z boazerii: deski między słupkami albo na zewnątrz słupków
+    var Wc3 = wallCalc(r);
+    if (Wc3 && !Wc3.err) {
+      var bwc = Wc3.cfg.w, horizB = Wc3.ori === "h";
+      var wcv = document.createElement("canvas"); wcv.width = 32; wcv.height = 32;
+      var wg = wcv.getContext("2d"); wg.fillStyle = "#c9a06a"; wg.fillRect(0, 0, 32, 32); wg.fillStyle = "#8a6438";
+      if (horizB) wg.fillRect(0, 0, 32, 2); else wg.fillRect(0, 0, 2, 32);
+      Wc3.panels.forEach(function (pn) {
+        var A1 = pt(p, pn.wall, pn.a, pn.t), A2 = pt(p, pn.wall, pn.b, pn.t), len = Math.hypot(A2.x - A1.x, A2.y - A1.y);
+        var tx = new THREE.CanvasTexture(wcv); tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+        tx.repeat.set(horizB ? 1 : len / bwc, horizB ? Wc3.H / bwc : 1);
+        var o = mesh(new THREE.BoxGeometry(len, Wc3.H, 0.018), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.85 }));
+        o.position.copy(V((A1.x + A2.x) / 2, (A1.y + A2.y) / 2, Wc3.z0 + Wc3.H / 2));
+        o.rotation.y = -Math.atan2(-(A2.y - A1.y), (A2.x - A1.x));
+      });
+    }
+
     // drewutnia: kratownica, górna belka i ułożone drewno
     if (r.wood) {
       var w = r.wood;
@@ -2459,12 +2644,25 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       function face(u1, t1, u2, t2) {
         var A1 = pt(p, w.wall, u1, t1), A2 = pt(p, w.wall, u2, t2);
         var len = Math.hypot(A2.x - A1.x, A2.y - A1.y); if (len < 0.05) return;
+        if (w.fill === "slats") {
+          // łaty po zewnętrznej stronie słupków: odsunięte od środka drewutni o pół grubości łaty
+          var C = pt(p, w.wall, (w.u1 + w.u2) / 2, (w.mode === "out" ? -w.D : w.D) / 2);
+          var mx = (A1.x + A2.x) / 2, my = (A1.y + A2.y) / 2, nx = 0, ny = 0;
+          if (Math.abs(A2.x - A1.x) > Math.abs(A2.y - A1.y)) ny = my > C.y ? 1 : -1; else nx = mx > C.x ? 1 : -1;
+          var B1 = { x: A1.x + nx * 0.025, y: A1.y + ny * 0.025 }, B2 = { x: A2.x + nx * 0.025, y: A2.y + ny * 0.025 };
+          for (var ri = 0; ri < w.slats.rows; ri++) {
+            var zb = 0.05 + ri * 0.14;
+            bar(V(B1.x, B1.y, zb), V(B2.x, B2.y, zb), 0.05, 0.07, mSlat);
+          }
+          return;
+        }
         var tex = lat.clone(); tex.needsUpdate = true; tex.repeat.set(len / 0.3, p.wH / 0.3);
         var o = mesh(new THREE.PlaneGeometry(len, p.wH), new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.9 }));
         var m1 = V((A1.x + A2.x) / 2, (A1.y + A2.y) / 2, p.wH / 2);
         o.position.copy(m1);
         o.rotation.y = -Math.atan2(-(A2.y - A1.y), (A2.x - A1.x));
       }
+      var mSlat = mat(0xc29560);
       var Dd = w.mode === "out" ? -w.D : w.D;
       face(w.u1, Dd, w.u2, Dd);
       if (w.mode === "in") face(w.u1, 0, w.u2, 0);
@@ -2716,6 +2914,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 75
       if (!el("roofCard").hidden) parts.push(el("roofCard"));
       if (!el("boazCard").hidden) parts.push(el("boazCard"));
       if (!el("coverCard").hidden) parts.push(el("coverCard"));
+      if (!el("wallCard").hidden) parts.push(el("wallCard"));
       if (!el("woodCard").hidden) parts.push(el("woodCard"));
       parts.push(el("tbl").closest(".card"), el("steps").closest(".card"));
 

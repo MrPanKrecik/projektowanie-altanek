@@ -11,13 +11,15 @@ Prosta aplikacja w przeglądarce do projektowania altanek i małych domków ogro
 - **Słupki** – ile ich potrzeba i gdzie dokładnie mają stać (współrzędne od rogu kostki i od narożnika
   altany), z równym rozstawem nieprzekraczającym podanego maksimum. Opcjonalnie słupek pod kalenicę.
 - **Drzwi** – otwór na wybranej ścianie ze słupkami i kotwami po obu stronach oraz długość nadproża.
-- **Drewutnia** – miejsce na drewno dobudowane z zewnątrz lub wydzielone w środku, zabudowane
-  kratownicą: dodatkowe słupki, metry kratownicy i pojemność w metrach przestrzennych.
+- **Drewutnia** – miejsce na drewno dobudowane z zewnątrz lub wydzielone w środku, zabudowane poziomymi
+  łatami 5×7 cm (z przerwą 7 cm) albo kratownicą: dodatkowe słupki, łaty do zamówienia i pojemność w mp.
 - **Obrzeże** – metry bieżące wokół kostki na wybranych bokach, sztuki na każdy bok z docinkami
   (obrzeża 100, 75 lub 50 cm) i beton na ławę pod obrzeże.
 - **Dach i więźba** – dach jedno-, dwu- lub czterospadowy z okapem i daszkiem wysuniętym nad wejściem
   (na wspornikach albo na dodatkowych słupkach): krokwie, krokwie narożne i kulawe, jętki, oczepy, belki poprzeczne między słupkami,
   płatew kalenicowa, długości słupków, powierzchnia połaci, deski czołowe, łaty i okucie boczne na krawędziach szczytów, m³ drewna i zamówienie na wymiar do tartaku.
+- **Ściany z boazerii** – wybrane ściany obite między słupkami albo na słupkach, deski poziomo lub pionowo
+  (z ryglami), na pełną wysokość albo do zadanej; zakup w paczkach.
 - **Pokrycie dachu** – gont bitumiczny (paczki z zapasem, gąsiory, papa podkładowa) , blachodachówka albo blacha trapezowa/na rąbek w arkuszach
   o zadanej szerokości krycia (lista arkuszy na wymiar, gąsior, wkręty, membrana), do tego okapnik i okucie boczne.
 - **Boazeria na dach** – liczba rzędów na każdej połaci, układ desek z łączeniami tylko na krokwiach
